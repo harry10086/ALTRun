@@ -1,0 +1,248 @@
+<Window x:Class="ALTRun.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ALTRun"
+        Width="660"
+        Height="460"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        FontFamily="Segoe UI Variable Display, Microsoft YaHei UI, sans-serif"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        Deactivated="Window_Deactivated"
+        Drop="Window_Drop"
+        AllowDrop="True">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- 列表项悬停与选中样式 -->
+        <Style x:Key="ResultItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="ItemBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="8"
+                                Padding="12,9"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource HighlightBgBrush}"/>
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="ItemBorder" Property="BorderThickness" Value="1"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource HoverBgBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- 主外壳容器：高质感卡片 + 边框 -->
+    <Border x:Name="MainContainer"
+            Background="{DynamicResource BgBrush}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1"
+            SnapsToDevicePixels="True">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- 搜索栏 -->
+                <RowDefinition Height="Auto"/> <!-- 分割线 -->
+                <RowDefinition Height="*"/>    <!-- 结果列表 -->
+                <RowDefinition Height="Auto"/> <!-- 底部状态栏 -->
+            </Grid.RowDefinitions>
+
+            <!-- 1. 顶部现代输入框 -->
+            <Grid Grid.Row="0" Margin="18,14,18,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- 现代搜索标识 -->
+                <TextBlock Grid.Column="0"
+                           Text="›"
+                           FontSize="26"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource AccentBrush}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,12,2"/>
+
+                <TextBox x:Name="SearchBox"
+                         Grid.Column="1"
+                         FontSize="19"
+                         FontWeight="SemiBold"
+                         Foreground="{DynamicResource TextBrush}"
+                         CaretBrush="{DynamicResource AccentBrush}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         VerticalAlignment="Center"
+                         TextChanged="SearchBox_TextChanged"/>
+
+                <!-- 占位符文字 -->
+                <TextBlock x:Name="PlaceholderText"
+                           Grid.Column="1"
+                           Text="输入快捷键 / 拼音首字母 / >命令 / =算式..."
+                           FontSize="16"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           VerticalAlignment="Center"
+                           IsHitTestVisible="False"/>
+
+                <!-- 主题风格切换菜单 -->
+                <Button Grid.Column="2"
+                        x:Name="BtnTheme"
+                        Content="🎨"
+                        FontSize="16"
+                        Foreground="{DynamicResource TextMutedBrush}"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Padding="6,2"
+                        Margin="0,0,4,0"
+                        ToolTip="选择外观主题风格"
+                        Click="BtnTheme_Click"/>
+
+                <!-- 管理按钮 -->
+                <Button Grid.Column="3"
+                        Content="⚙"
+                        FontSize="16"
+                        Foreground="{DynamicResource TextMutedBrush}"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Padding="6,2"
+                        ToolTip="快捷方式管理"
+                        Click="BtnManage_Click"/>
+            </Grid>
+
+            <!-- 2. 分割线 -->
+            <Separator Grid.Row="1"
+                       Background="{DynamicResource BorderBrush}"
+                       Margin="0"
+                       Opacity="0.4"/>
+
+            <!-- 3. 搜索结果列表 -->
+            <ListBox x:Name="ResultListBox"
+                     Grid.Row="2"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Padding="10,6"
+                     ItemContainerStyle="{StaticResource ResultItemStyle}"
+                     MouseDoubleClick="ResultListBox_MouseDoubleClick">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/> <!-- 数字序号 -->
+                                <ColumnDefinition Width="Auto"/> <!-- 快捷键胶囊 -->
+                                <ColumnDefinition Width="*"/>    <!-- 名称与目标 -->
+                                <ColumnDefinition Width="Auto"/> <!-- 频次角标 -->
+                            </Grid.ColumnDefinitions>
+
+                            <!-- 数字序号直达键 (1~9, 0) -->
+                            <Border Grid.Column="0"
+                                    Width="24" Height="24"
+                                    CornerRadius="4"
+                                    Background="{DynamicResource BadgeBgBrush}"
+                                    Margin="0,0,10,0"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding DisplayIndex}"
+                                           FontSize="13"
+                                           FontWeight="Bold"
+                                           FontFamily="Cascadia Code, Consolas, monospace"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Border>
+
+                            <!-- 快捷词胶囊 Badge -->
+                            <Border Grid.Column="1"
+                                    CornerRadius="5"
+                                    Background="{DynamicResource CardBgBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    Padding="9,3"
+                                    Margin="0,0,12,0"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding ShortCut}"
+                                           FontSize="14"
+                                           FontWeight="Bold"
+                                           FontFamily="Cascadia Code, Consolas, monospace"
+                                           Foreground="{DynamicResource AccentBrush}"/>
+                            </Border>
+
+                            <!-- 名称与命令行 -->
+                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Name}"
+                                           FontSize="15"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextBrush}"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding CommandLine}"
+                                           FontSize="12"
+                                           FontFamily="Cascadia Code, Consolas, monospace"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           TextTrimming="CharacterEllipsis"
+                                           Margin="0,2,0,0"/>
+                            </StackPanel>
+
+                            <!-- 频次指示器 -->
+                            <TextBlock Grid.Column="3"
+                                       Text="{Binding Freq, StringFormat='{}★ {0}'}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextMutedBrush}"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0,4,0"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+            <!-- 4. 底部现代操作提示栏 -->
+            <Border Grid.Row="3"
+                    Background="{DynamicResource CardBgBrush}"
+                    Padding="16,9"
+                    BorderThickness="0,1,0,0"
+                    BorderBrush="{DynamicResource BorderBrush}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="↵ 启动" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
+                        <TextBlock Text="Ctrl+↵ 提权运行" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
+                        <TextBlock Text="0~9 键直达" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
+                        <TextBlock Text="Tab 补全" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
+                        <TextBlock Text="Esc 隐藏" FontSize="12" Foreground="{DynamicResource TextMutedBrush}"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="1"
+                               Text="支持拖入 ShortCutList.txt / 文件直接添加"
+                               FontSize="12"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

@@ -1,0 +1,100 @@
+name: Build and Release ALTRun v2
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Determine Version
+        id: get_version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag -match '^v(\d+\.\d+\.\d+.*)$') {
+            $version = $Matches[1]
+          } else {
+            $version = "2.0.0"
+          }
+          Write-Host "Releasing version: $version"
+          "VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Restore Dependencies
+        run: dotnet restore ALTRun-v2/ALTRun.csproj
+
+      - name: Build Framework-Dependent Single-File (~560KB)
+        run: >
+          dotnet publish ALTRun-v2/ALTRun.csproj
+          -c Release
+          -r win-x64
+          --no-self-contained
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:Version=${{ env.VERSION }}
+          -o publish-fd
+
+      - name: Build Self-Contained Standalone Single-File (Zero Runtime Dependency)
+        run: >
+          dotnet publish ALTRun-v2/ALTRun.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:Version=${{ env.VERSION }}
+          -o publish-sc
+
+      - name: Package Release Archives
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release-assets
+          
+          # 1. 复制独立单文件可执行程序
+          Copy-Item "publish-fd/ALTRun.exe" -Destination "release-assets/ALTRun.exe"
+          Copy-Item "publish-sc/ALTRun.exe" -Destination "release-assets/ALTRun-SelfContained.exe"
+          
+          # 2. 压缩轻量绿色版 zip (需已安装 .NET 8 桌面运行时)
+          New-Item -ItemType Directory -Force -Path "zip-fd/ALTRun"
+          Copy-Item "publish-fd/ALTRun.exe" -Destination "zip-fd/ALTRun/"
+          Copy-Item "README.md" -Destination "zip-fd/ALTRun/"
+          Compress-Archive -Path "zip-fd/ALTRun/*" -DestinationPath "release-assets/ALTRun-v${{ env.VERSION }}-win-x64.zip" -Force
+          
+          # 3. 压缩免安装独立运行版 zip (包含完整运行时，开箱即用)
+          New-Item -ItemType Directory -Force -Path "zip-sc/ALTRun"
+          Copy-Item "publish-sc/ALTRun.exe" -Destination "zip-sc/ALTRun/ALTRun.exe"
+          Copy-Item "README.md" -Destination "zip-sc/ALTRun/"
+          Compress-Archive -Path "zip-sc/ALTRun/*" -DestinationPath "release-assets/ALTRun-v${{ env.VERSION }}-win-x64-SelfContained.zip" -Force
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        with:
+          name: ALTRun v${{ env.VERSION }}
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            release-assets/ALTRun-v${{ env.VERSION }}-win-x64.zip
+            release-assets/ALTRun-v${{ env.VERSION }}-win-x64-SelfContained.zip
+            release-assets/ALTRun.exe
+            release-assets/ALTRun-SelfContained.exe

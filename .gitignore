@@ -97,3 +97,22 @@ FavoriteList.txt
 ParamHistory.txt
 ShortCutList.txt
 ShortCutList.txt.bak
+
+# .NET Build artifacts & Temporary files
+[Bb]in-v2/
+[Bb]uild/
+**/[Bb]in/
+**/[Oo]bj/
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+.vscode/
+.idea/
+*.pdb
+*.suo
+
+# Local user configs
+ALTRun_Config.json
+publish/
+publish-*/
