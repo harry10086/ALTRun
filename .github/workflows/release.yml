@@ -84,7 +84,30 @@ jobs:
           Copy-Item "README.md" -Destination "zip-sc/ALTRun/"
           Compress-Archive -Path "zip-sc/ALTRun/*" -DestinationPath "release-assets/ALTRun-v${{ env.VERSION }}-win-x64-SelfContained.zip" -Force
 
-      - name: Create GitHub Release
+          # 4. 生成统一 Release 说明文档
+          $notes = @"
+### 📦 发布文件下载指引 (Release Assets Guide)
+
+| 附件文件 | 文件类型 | 说明与适用场景 |
+| :--- | :--- | :--- |
+| 🚀 **`ALTRun-v${{ env.VERSION }}-win-x64.zip`** | 压缩包 (~230 KB) | **极速轻量绿色版 (强烈推荐)**：解压即用，需系统已安装 [.NET 8 桌面运行时](https://dotnet.microsoft.com/download/dotnet/8.0) |
+| ⚡ **`ALTRun.exe`** | 单文件 (~560 KB) | **极速轻量单文件版**：无需解压直接双击运行，需 .NET 8 桌面运行时 |
+| 📦 **`ALTRun-v${{ env.VERSION }}-win-x64-SelfContained.zip`** | 压缩包 (~66 MB) | **免安装独立运行版**：内置完整独立运行时，任意 Windows 10/11 电脑**开箱即用，无需安装任何运行库** |
+| 🛡️ **`ALTRun-SelfContained.exe`** | 单文件 (~71 MB) | **独立运行版单文件程序**：零依赖独立单文件，随身 U 盘或纯净新装系统首选 |
+
+---
+
+### 🌟 核心特性与更新 (Features)
+- 采用 **Windows 11 Fluent Design**（原生圆角、DWM 深度渲染阴影、多主题配色）；
+- 提供 **12 款精调主题风格（5 款暗色 + 7 款亮色）**，告别单调蓝黑灰；
+- 支持 **拼音首字母模糊检索**（如 `jsq` / `calc` $\to$ 计算器，`snip` $\to$ 截图工具）；
+- **开机自动运行双重保障**：自动创建 Windows 启动文件夹快捷方式与注册表项；
+- 彻底解决 Win11 剪贴板竞争与 OLE 弹窗报错；
+- 优化空闲常驻内存管理，常驻内存仅数兆字节。
+"@
+          [System.IO.File]::WriteAllText("release-notes.md", $notes, [System.Text.Encoding]::UTF8)
+
+      - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
@@ -92,20 +115,18 @@ jobs:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', env.VERSION) }}
           draft: false
           prerelease: false
-          generate_release_notes: true
-          body: |
-            ### 📦 发布文件下载指引 (Release Assets Guide)
-
-            | 附件文件 | 文件类型 | 说明与适用场景 |
-            | :--- | :--- | :--- |
-            | 🚀 **`ALTRun-v${{ env.VERSION }}-win-x64.zip`** | 压缩包 (~230 KB) | **极速轻量绿色版 (推荐)**：解压即用，需系统已安装 [.NET 8 桌面运行时](https://dotnet.microsoft.com/download/dotnet/8.0) |
-            | ⚡ **`ALTRun.exe`** | 单文件 (~560 KB) | **极速轻量单文件版**：无需解压直接双击运行，需 .NET 8 桌面运行时 |
-            | 📦 **`ALTRun-v${{ env.VERSION }}-win-x64-SelfContained.zip`** | 压缩包 (~66 MB) | **免安装独立运行版**：内置完整独立运行时，任意 Windows 10/11 电脑**开箱即用，无需安装任何运行库** |
-            | 🛡️ **`ALTRun-SelfContained.exe`** | 单文件 (~71 MB) | **独立运行版单文件程序**：零依赖独立单文件，随身 U 盘或纯净新装系统首选 |
-
-            ---
+          body_path: release-notes.md
           files: |
             release-assets/ALTRun-v${{ env.VERSION }}-win-x64.zip
             release-assets/ALTRun-v${{ env.VERSION }}-win-x64-SelfContained.zip
             release-assets/ALTRun.exe
             release-assets/ALTRun-SelfContained.exe
+
+      - name: Force Sync Release Notes via GitHub CLI
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = if ($env:GITHUB_REF -like "refs/tags/*") { $env:GITHUB_REF_NAME } else { "v$($env:VERSION)" }
+          Write-Host "Syncing notes for release $tag"
+          gh release edit $tag --notes-file release-notes.md
