@@ -12,7 +12,7 @@ namespace ALTRun.Services
         private static readonly int[] SecPosValueList = new int[]
         {
             0xB0A1, 0xB0C5, 0xB2C1, 0xB4EE, 0xB6EA, 0xB7A2, 0xB8C1, 0xB9FE,
-            0xBBF7, 0xBFA6, 0xC0AC, 0xC2E8, 0xC4FF, 0xC5B6, 0xC5BE, 0xC6DA,
+            0xBBF7, 0xBFA6, 0xC0AC, 0xC2E8, 0xC4C3, 0xC5B6, 0xC5BE, 0xC6DA,
             0xC8BB, 0xC8F6, 0xCBFA, 0xCDDA, 0xCEF4, 0xD1B9, 0xD4D1, 0xD7FA
         };
 
@@ -40,7 +40,8 @@ namespace ALTRun.Services
             { '谷', 'g' }, { '网', 'w' }, { '络', 'l' }, { '蓝', 'l' }, { '牙', 'y' },
             { '声', 's' }, { '狼', 'l' }, { '毫', 'h' }, { '小', 'x' }, { '抖', 'd' },
             { '拼', 'p' }, { '奇', 'q' }, { '艺', 'y' }, { '淘', 't' }, { '宝', 'b' },
-            { '阿', 'a' }, { '里', 'l' }, { '暴', 'b' }, { '风', 'f' }, { '狗', 'g' }
+            { '阿', 'a' }, { '里', 'l' }, { '暴', 'b' }, { '风', 'f' }, { '狗', 'g' },
+            { '脑', 'n' }
         };
 
         static PinyinHelper()

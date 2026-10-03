@@ -8,7 +8,7 @@
 *极简键盘交互 · 沉浸 Fluent Design · 拼音首字母模糊检索 · 零依赖绿色单文件*
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D4?logo=windows)](https://www.microsoft.com/)
-[![Version](https://img.shields.io/badge/Version-2.0.0-success)](#)
+[![Version](https://img.shields.io/badge/Version-2.0.1-success)](#)
 [![Framework](https://img.shields.io/badge/.NET-8.0%20WPF-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Size](https://img.shields.io/badge/Size-~216KB-brightgreen)](#)
 
