@@ -70,6 +70,16 @@ namespace ALTRun.Views
 
             // 2. 注册全局热键 (从配置读取)
             RegisterConfiguredHotKey(hwnd);
+
+            // 3. 校验并同步开机自启动设置 (启动文件夹与注册表双重保障)
+            try
+            {
+                if (App.Config.Settings.AutoRun)
+                {
+                    AutoRunService.ApplyAutoRun(true);
+                }
+            }
+            catch { }
         }
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -256,20 +266,7 @@ namespace ALTRun.Views
                 App.Config.Settings.AutoRun = !App.Config.Settings.AutoRun;
                 App.Config.Save();
 
-                string runKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
-                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(runKey, true);
-                if (key != null)
-                {
-                    if (App.Config.Settings.AutoRun)
-                    {
-                        string exePath = Environment.ProcessPath ?? "";
-                        key.SetValue("ALTRun", $"\"{exePath}\"");
-                    }
-                    else
-                    {
-                        key.DeleteValue("ALTRun", false);
-                    }
-                }
+                AutoRunService.ApplyAutoRun(App.Config.Settings.AutoRun);
 
                 menuItem.IsChecked = App.Config.Settings.AutoRun;
             }

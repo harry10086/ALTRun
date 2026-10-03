@@ -22,14 +22,14 @@
 
 十几年前，ALTRun 基于 Delphi 2007 诞生。随着 Windows 10 与 Windows 11 的普及，原版在现代系统上面临高分屏模糊、洋红抠图锯齿、剪贴板竞争弹窗、缺少现代命令等局限。
 
-**ALTRun v2.0** 在完整继承原有**极速、按键轻快灵魂与全部快捷方式配置（100% 无缝读取导入）**的基础上，进行了现代重构与系统级深度集成：
+**ALTRun v2.0** 在完整继承原有**极速、按键轻快灵魂与全部快捷方式配置（100%无缝读取导入）**的基础上，进行了现代重构与系统级深度集成：
 - 采用 **Windows 11 Fluent Design（原生圆角、DWM 投影、Mica/亚克力半透明与沉浸式深色模式）**；
 - 彻底解决 Win11 下偶发的剪贴板与 OLE 弹窗报错；
 - 支持**拼音首字母与全拼模糊检索**（打 `wx` $\to$ `微信`，打 `yy` $\to$ `网易云音乐`）；
 - 引入**命令行终端直接执行**（`>` 前缀）与**即时数学计算器**（`=` 前缀）；
 - 完美支持 **2K / 4K 屏幕 Per-Monitor V2 矢量级高清缩放**；
 - 绿色独立运行，打包产物仅 **~216 KB**，空闲常驻内存经过纯软件渲染与工作集主动修剪优化，稳定保持在 **~3.8 MB** 极低水平。
-
+![altrun1](https://github.mianao.info/https://raw.githubusercontent.com/harry10086/picx-images-hosting/master/altrun/altrun1.webp)
 ---
 
 ## ✨ 核心特性 (Features)
@@ -40,10 +40,11 @@
   - **🌙 暗色系列**：`黑曜灵动` (Raycast极客风)、`东京之夜` (经典深靛紫)、`赛博薄荷` (护眼极客黑绿)、`暖咖摩卡` (Catppuccin温润拿铁)、`经典系统` (Win11 原生深蓝)；
   - **☀️ 浅色系列**：`珍珠晨曦` (象牙雅白与天青海风)、`樱花粉雪` (浪漫柔白与樱粉高光)、`浅山抹茶` (护眼米白与草木抹茶绿)、`暖阳琥珀` (温馨羊皮纸与蜜金)、`极光白昼` (北欧冷灰雪白与极光靛)、`紫藤花语` (唯美薰衣草淡紫)、`蜜柑苏打` (元气纯白与晨曦暖橙)。
   - 点击主界面右上角 `🎨` 按钮、右键托盘图标或在快捷管理中心中即可一秒无缝热重载！
+![altrun2](https://github.mianao.info/https://raw.githubusercontent.com/harry10086/picx-images-hosting/master/altrun/altrun2.webp)
 - **Per-Monitor V2 DPI 高清**：在 100%、125%、150%、200% 等任意缩放比例下，文字与图标始终细腻锐利。
 - **大字体舒适管理中心**：快捷方式设置窗口采用 16px 清晰大字号、48px 宽敞行高与高对比度配色规范，彻底告别眯眼看字，选中行与各列信息清晰可辨。
 - **一键浏览添加程序/目录**：新增快捷项时，支持一键点击浏览选取可执行文件（`.exe`、`.lnk`）或文件夹，并自动提取名称与拼音快捷词。
-
+![altrun3](https://github.mianao.info/https://raw.githubusercontent.com/harry10086/picx-images-hosting/master/altrun/altrun3.webp)
 ### 2. 极速键盘操作与交互 (Keystroke Efficiency)
 - **自由定制全局热键**：支持任意组合 `Alt / Ctrl / Shift / Win + 主键`（如 `Alt+Space`、`Ctrl+Space`、`Alt+R`），在管理中心即可一键修改保存并即时生效。
 - **数字键直达 (0~9)**：候选结果左侧清晰标注 `1` 到 `0` 序号，按对应数字键直接触发，无需手动回车。

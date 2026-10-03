@@ -93,6 +93,17 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
+          body: |
+            ### 📦 发布文件下载指引 (Release Assets Guide)
+
+            | 附件文件 | 文件类型 | 说明与适用场景 |
+            | :--- | :--- | :--- |
+            | 🚀 **`ALTRun-v${{ env.VERSION }}-win-x64.zip`** | 压缩包 (~230 KB) | **极速轻量绿色版 (推荐)**：解压即用，需系统已安装 [.NET 8 桌面运行时](https://dotnet.microsoft.com/download/dotnet/8.0) |
+            | ⚡ **`ALTRun.exe`** | 单文件 (~560 KB) | **极速轻量单文件版**：无需解压直接双击运行，需 .NET 8 桌面运行时 |
+            | 📦 **`ALTRun-v${{ env.VERSION }}-win-x64-SelfContained.zip`** | 压缩包 (~66 MB) | **免安装独立运行版**：内置完整独立运行时，任意 Windows 10/11 电脑**开箱即用，无需安装任何运行库** |
+            | 🛡️ **`ALTRun-SelfContained.exe`** | 单文件 (~71 MB) | **独立运行版单文件程序**：零依赖独立单文件，随身 U 盘或纯净新装系统首选 |
+
+            ---
           files: |
             release-assets/ALTRun-v${{ env.VERSION }}-win-x64.zip
             release-assets/ALTRun-v${{ env.VERSION }}-win-x64-SelfContained.zip
