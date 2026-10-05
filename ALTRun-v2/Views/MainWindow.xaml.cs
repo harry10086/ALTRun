@@ -301,6 +301,13 @@ namespace ALTRun.Views
         {
             Dispatcher.Invoke(() =>
             {
+                var helper = new WindowInteropHelper(this);
+                IntPtr currentFg = SystemController.GetForegroundWindow();
+                if (currentFg != IntPtr.Zero && currentFg != helper.Handle)
+                {
+                    SystemController.LastForegroundWindow = currentFg;
+                }
+
                 var workArea = SystemParameters.WorkArea;
                 Left = (workArea.Width - Width) / 2 + workArea.Left;
                 Top = workArea.Height * 0.22 + workArea.Top;

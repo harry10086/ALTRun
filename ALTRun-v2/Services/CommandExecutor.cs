@@ -30,8 +30,49 @@ namespace ALTRun.Services
                 return RunInTerminal(cmdToRun, runAsAdmin);
             }
 
+            // 特殊模式：原生系统与窗口管理指令 (包含对历史 WinCtl 外部工具的兼容原生接管)
+            if (SystemController.TryExecuteInternalCommand(item.CommandLine, userArg, out bool handled))
+            {
+                if (handled)
+                {
+                    item.Freq++;
+                    return true;
+                }
+            }
+
             string targetCmd = item.CommandLine.Trim();
             string finalArgs = string.Empty;
+
+            // 处理原版旧窗口模式修饰符 @ / @+ / @-
+            var windowStyle = ProcessWindowStyle.Normal;
+            bool createNoWindow = false;
+
+            if (targetCmd.StartsWith("@+"))
+            {
+                windowStyle = ProcessWindowStyle.Maximized;
+                targetCmd = targetCmd.Substring(2).TrimStart();
+            }
+            else if (targetCmd.StartsWith("@-"))
+            {
+                windowStyle = ProcessWindowStyle.Minimized;
+                targetCmd = targetCmd.Substring(2).TrimStart();
+            }
+            else if (targetCmd.StartsWith("@"))
+            {
+                windowStyle = ProcessWindowStyle.Hidden;
+                createNoWindow = true;
+                targetCmd = targetCmd.Substring(1).TrimStart();
+            }
+
+            // 再次检测剥除 @ 后的系统内置指令
+            if (SystemController.TryExecuteInternalCommand(targetCmd, userArg, out handled))
+            {
+                if (handled)
+                {
+                    item.Freq++;
+                    return true;
+                }
+            }
 
             // 1. 处理剪贴板宏 {%c} 或 %c
             if (targetCmd.Contains("{%c}") || targetCmd.Contains("%c"))
@@ -40,11 +81,18 @@ namespace ALTRun.Services
                 targetCmd = targetCmd.Replace("{%c}", clipText).Replace("%c", clipText);
             }
 
-            // 2. 处理参数宏 %p
-            if (targetCmd.Contains("%p"))
+            // 2. 处理参数宏 {%p} 或 %p
+            if (targetCmd.Contains("{%p}") || targetCmd.Contains("%p"))
             {
+                if (string.IsNullOrWhiteSpace(userArg) && (targetCmd == "{%p}" || targetCmd == "%p"))
+                {
+                    SystemController.OpenRunDialog();
+                    item.Freq++;
+                    return true;
+                }
+
                 string encodedArg = EncodeParam(userArg, item.ParamType);
-                targetCmd = targetCmd.Replace("%p", encodedArg);
+                targetCmd = targetCmd.Replace("{%p}", encodedArg).Replace("%p", encodedArg);
             }
             else if (!string.IsNullOrWhiteSpace(userArg))
             {
@@ -60,16 +108,25 @@ namespace ALTRun.Services
                 }
             }
 
-            // 3. 展开环境变量
+            // 3. 处理 CLSID 虚拟文件夹路径（例如我的电脑 ::{20D04FE0-3AEA-1069-A2D8-08002B30309D}）
+            if (targetCmd.StartsWith("::{"))
+            {
+                finalArgs = targetCmd;
+                targetCmd = "explorer.exe";
+            }
+
+            // 4. 展开环境变量
             targetCmd = Environment.ExpandEnvironmentVariables(targetCmd);
 
-            // 4. 执行进程
+            // 5. 执行进程
             try
             {
                 var psi = new ProcessStartInfo
                 {
                     UseShellExecute = true,
-                    FileName = targetCmd
+                    FileName = targetCmd,
+                    WindowStyle = windowStyle,
+                    CreateNoWindow = createNoWindow
                 };
 
                 if (!string.IsNullOrWhiteSpace(finalArgs))
@@ -94,7 +151,7 @@ namespace ALTRun.Services
             catch (Exception ex)
             {
                 // 如果直接启动失败（例如带有参数被写在同一行），尝试拆分 FileName 和 Arguments
-                if (TrySplitAndRun(targetCmd, finalArgs, item.WorkingDir, runAsAdmin))
+                if (TrySplitAndRun(targetCmd, finalArgs, item.WorkingDir, runAsAdmin, windowStyle, createNoWindow))
                 {
                     item.Freq++;
                     return true;
@@ -142,7 +199,7 @@ namespace ALTRun.Services
             }
         }
 
-        private static bool TrySplitAndRun(string fullCmd, string extraArgs, string workingDir, bool runAsAdmin)
+        private static bool TrySplitAndRun(string fullCmd, string extraArgs, string workingDir, bool runAsAdmin, ProcessWindowStyle windowStyle = ProcessWindowStyle.Normal, bool createNoWindow = false)
         {
             try
             {
@@ -188,7 +245,9 @@ namespace ALTRun.Services
                 {
                     UseShellExecute = true,
                     FileName = exe,
-                    Arguments = args
+                    Arguments = args,
+                    WindowStyle = windowStyle,
+                    CreateNoWindow = createNoWindow
                 };
 
                 if (!string.IsNullOrWhiteSpace(workingDir) && Directory.Exists(workingDir))

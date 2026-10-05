@@ -8,7 +8,7 @@
 *极简键盘交互 · 沉浸 Fluent Design · 拼音首字母模糊检索 · 零依赖绿色单文件*
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D4?logo=windows)](https://www.microsoft.com/)
-[![Version](https://img.shields.io/badge/Version-2.0.1-success)](#)
+[![Version](https://img.shields.io/badge/Version-2.0.2-success)](#)
 [![Framework](https://img.shields.io/badge/.NET-8.0%20WPF-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Size](https://img.shields.io/badge/Size-~216KB-brightgreen)](#)
 
@@ -61,51 +61,108 @@
   - 命令行中支持 `%p` 占位符（例如配置 `g` 对应 `https://google.com/search?q=%p`，输入 `g rust` 自动组装发起搜索）；
   - 命令行中支持 `{%c}` 或 `%c` 占位符（一键将当前剪贴板文本作为参数传递）。
 
-### 4. 现代 Windows 命令行与系统工具直达
+### 4. 原生系统控制与窗口管理 (Native System & Window Controller)
+**彻底摆脱历史包袱**，无需寻找古老第三方的 `WinCtl.exe`，全部基于 Windows 原生 Win32 API 与 Shell COM 接口重构：
+- **🖥️ 极速显示桌面 (`desktop`)**：采用原生 Shell COM `ToggleDesktop()` 接口，零延迟瞬间切换显示桌面（体验完全等同于 `Win + D`）。
+- **🪟 智能前台窗口控制**：呼出 ALTRun 时自动记忆上一活动窗口（`LastForegroundWindow`），直达控制前台工作区：
+  - **置顶 / 取消置顶 (`top` / `untop`)**：一键锁定目标窗口为最顶层悬浮，或恢复普通层级；
+  - **最小化 / 最大化 / 关闭 (`minwin` / `maxwin` / `closewin`)**：秒级调控前台窗口尺寸与关闭；
+  - **关闭所有普通窗口 (`closeall`)**：安全向所有活动窗口发送关闭信号，智能避开系统托盘与桌面。
+- **⚡ 原生电源与系统安全**：
+  - **系统睡眠 (`sleep`)**：通过系统底层 `SetSuspendState` 触发真正的浅睡眠，彻底告别旧版误入深度休眠（Hibernate）的问题；
+  - **锁定屏幕 (`lock`)**：瞬间锁定 Windows 屏幕（等同于 `Win + L`）；
+  - **开箱即用运行窗口 (`r`)**：**直接输入 `r` 回车即可打开系统原生“运行 (Win+R)”对话框**，若输入 `r cmd` 则直接携带参数执行。
+
+### 5. 现代 Windows 命令行、算式计算与宏参数
 - **直接运行命令行**：输入 `>` 加任意终端命令（如 `> ping baidu.com`、`> ipconfig`），直接调起 Windows Terminal 执行并保留窗口。
 - **即时计算器**：输入 `= 1024*768` 或纯算式 `(15+25)*4`，第一行候选即时显示运算结果，回车直接将结果复制到剪贴板。
 - **文件拖入自动添加**：将任意文件、文件夹、`.lnk` 快捷方式拖拽至 ALTRun 搜索框，即可自动提取路径与名称创建新快捷项。
+- **参数宏与剪贴板宏**：
+  - 支持 `{%p}` 或 `%p` 占位符（例如配置 `g` 对应 `https://google.com/search?q=%p`，输入 `g rust` 自动组装发起搜索）；
+  - 支持 `{%c}` 或 `%c` 占位符（一键将当前剪贴板文本作为参数传递）；
+  - 支持 `@+`（最大化启动）、`@-`（最小化启动）、`@`（静默无黑框运行）旧版高级窗口修饰符。
 
 ---
 
-## 🚀 预置现代快捷项清单 (Modern Presets)
+## 🚀 开箱即用预置快捷清单 (Out-of-the-Box Presets)
 
-系统开箱即用集成以下高频命令，无需手动配置：
+> 💡 **零配置开箱即用**：下载解压后无需任何配置文件，启动即可直接使用以下全套系统、工具与网络搜索快捷方式：
 
-| 快捷输入 | 名称 / 目标 | 核心说明 |
-| :--- | :--- | :--- |
-| `wt` | Windows Terminal 终端 | 启动新一代 Windows 终端 |
-| `pwsh` | PowerShell 终端 | 启动现代 PowerShell |
-| `cmd` | 命令提示符 | 经典 CMD 控制台 |
-| `snip` | 截图工具 (`ms-screenclip:`) | 唤起现代矩形/自由截图 |
-| `calc` | 计算器 | 启动 Windows 计算器 |
-| `task` | 任务管理器 | 启动任务管理器 |
-| `set` | Windows 设置主页 | 现代系统设置面板 |
-| `app` | 已安装应用 (`ms-settings:appsfeatures`) | 快速卸载/管理应用程序 |
-| `net` | 网络与 Internet 设置 | 现代网络与代理配置 |
-| `blue` | 蓝牙与外设连接 | 蓝牙设备快速配对 |
-| `up` | Windows 更新检查 | 检查并安装系统更新 |
-| `vol` | 声音与音量混合器 | 音量合成器调节 |
-| `hosts`| 编辑 Hosts 文件 | 记事本快速打开系统 hosts |
-| `g` | Google 搜索 (`%p`) | 浏览器发起谷歌查询 |
-| `b` | 百度搜索 (`%p`) | 浏览器发起百度查询 |
-| `cb` | 百度搜索剪贴板内容 (`{%c}`) | 自动读取剪贴板并发起搜索 |
+### 1. 系统控制与窗口管理
+| 快捷键 | 功能说明 | 对应原生指令 | 效果描述 |
+| :--- | :--- | :--- | :--- |
+| `desktop` | **显示桌面** | `win:desktop` | 极速切换桌面（等同 Win+D） |
+| `top` | **置顶当前窗口** | `win:top` | 自动切换上一个活动窗口的置顶状态 |
+| `untop` | **取消窗口置顶** | `win:untop` | 恢复窗口为常规层级 |
+| `minall` | **最小化所有窗口** | `win:minall` | 瞬间最小化全部窗口（等同 Win+M） |
+| `maxall` | **还原所有窗口** | `win:maxall` | 还原最小化窗口（等同 Win+Shift+M） |
+| `closewin` | **关闭当前窗口** | `win:close` | 优雅关闭前台活动应用 |
+| `closeall` | **关闭所有普通窗口** | `win:closeall` | 批量关闭所有正在运行的应用 |
+| `lock` | **锁定屏幕** | `sys:lock` | 快速锁屏保护隐私（等同 Win+L） |
+| `sleep` | **系统睡眠** | `sys:sleep` | 原生底层浅睡眠 |
+| `shutdown` | **立即关机** | `shutdown.exe /s /t 0` | 系统快速关机 |
+| `reboot` | **立即重启** | `shutdown.exe /r /t 0` | 系统重启 |
+
+### 2. 核心系统工具与常用终端
+| 快捷键 | 功能说明 | 对应程序/协议 | 效果描述 |
+| :--- | :--- | :--- | :--- |
+| `r` | **系统运行** | `{%p}` | **单独回车唤起 Win+R**，带参即直接执行 |
+| `wt` | **Windows Terminal** | `wt.exe` | 调起现代终端 |
+| `pwsh` | **PowerShell 终端** | `powershell.exe` | 调起 PowerShell |
+| `cmd` | **命令提示符** | `cmd.exe` | 经典命令控制台 |
+| `calc` | **计算器** | `calc.exe` | 启动系统计算器 |
+| `snip` | **截图工具** | `ms-screenclip:` | 唤起屏幕截图与草图 |
+| `task` | **任务管理器** | `taskmgr.exe` | 监控系统进程与资源占用 |
+| `pad` | **记事本** | `notepad.exe` | 启动系统记事本 |
+| `reg` | **注册表编辑器** | `regedit.exe` | 启动注册表管理 |
+| `dev` | **设备管理器** | `devmgmt.msc` | 查看与更新硬件驱动 |
+| `hosts` | **编辑 Hosts 文件** | `notepad.exe ...\hosts` | 记事本直达 hosts 配置 |
+
+### 3. Windows 10/11 现代设置
+| 快捷键 | 功能说明 | 对应协议 | 效果描述 |
+| :--- | :--- | :--- | :--- |
+| `set` | **Windows 设置主页** | `ms-settings:` | 打开系统设置首页 |
+| `app` | **已安装应用** | `ms-settings:appsfeatures` | 快速卸载与管理应用程序 |
+| `net` | **网络与 Internet** | `ms-settings:network` | 配置 Wi-Fi、以太网与代理 |
+| `blue` | **蓝牙与设备** | `ms-settings:bluetooth` | 蓝牙耳机与外设快速配对 |
+| `up` | **Windows 更新** | `ms-settings:windowsupdate` | 检查并安装系统补丁 |
+| `vol` | **声音与音量** | `ms-settings:sound` | 调节声音设备与应用音量合成器 |
+
+### 4. 常用 Shell 目录与控制面板
+| 快捷键 | 功能说明 | 对应路径 | 效果描述 |
+| :--- | :--- | :--- | :--- |
+| `pc` | **此电脑** | `explorer.exe shell:::{...}` | 打开我的电脑驱动器列表 |
+| `down` | **下载文件夹** | `shell:Downloads` | 直达用户个人下载目录 |
+| `startup` | **系统启动目录** | `shell:startup` | 打开开机自启动快捷方式目录 |
+| `recent` | **最近打开文件** | `shell:Recent` | 查看近期使用的文档和文件 |
+| `control` | **传统控制面板** | `control.exe` | 打开经典控制面板 |
+| `sys` | **系统高级属性** | `Sysdm.cpl` | 环境变量与高级系统设置 |
+
+### 5. 增强搜索与剪贴板宏
+| 快捷键 | 功能说明 | 对应指令 | 效果描述 |
+| :--- | :--- | :--- | :--- |
+| `g` | **Google 搜索** | `https://google.com/search?q=%p` | 示例：输入 `g c#` 搜索 C# |
+| `b` | **百度搜索** | `https://baidu.com/s?wd=%p` | 示例：输入 `b 天气` 搜索天气 |
+| `gh` | **GitHub 搜索** | `https://github.com/search?q=%p` | 示例：输入 `gh wpf` 搜索仓库 |
+| `cg` | **谷歌搜索剪贴板** | `https://google.com/search?q={%c}` | 自动将当前剪切板文字送入谷歌搜索 |
+| `cb` | **百度搜索剪贴板** | `https://baidu.com/s?wd={%c}` | 自动将当前剪切板文字送入百度搜索 |
 
 ---
 
-## 📂 旧版快捷设置无缝导入机制 (Data Migration)
+## 📂 旧版快捷设置无缝导入与自愈升级 (Data Migration & Self-Healing)
 
-您无需手动重新配置快捷项，ALTRun v2.0 原生提供 **100% 兼容方案**：
+您无需手动重新配置快捷项，ALTRun v2.0 提供 **全自动兼容与自愈机制**：
 
-### 1. 自动检测与导入
-- 启动时，ALTRun 会**自动检测**同级目录、父级目录或 `Bin\` 目录下的原版 `ShortCut.ini`；
-- 只要检测到旧版配置，会自动将其中的所有快捷词、名称、命令行、参数类型、使用频次无缝导入，并生成现代 `ALTRun_Config.json`。
+### 1. 自动检测与无感自愈
+- 启动时自动检测同级目录的 `ShortCutList.txt` 或 `ShortCut.ini`；
+- **智能自愈修复**：旧版配置中遗留的 `@.\WinCtl.exe MinAll` 等已失效的历史指令，会在加载时**自动无感升级为现代原生协议**；
+- **智能补齐**：自动补全缺失的系统级基础快捷指令，确保功能永远完整可用。
 
 ### 2. 手动导入与拖拽
-- **拖拽导入**：直接将旧版 `ShortCut.ini` 拖到 ALTRun 悬浮窗口内，程序将自动批量导入；
-- **管理器导入/导出**：右键点击系统托盘图标 $\to$ 选择 **“快捷方式管理...”**（或点击搜索框右侧齿轮 ⚙），在管理器中提供了：
-  - `📥 导入旧版 ShortCut`
-  - `📤 导出为 ShortCut`（支持将修改同步回原版文件，方便多端备份）。
+- **拖拽导入**：直接将旧版 `ShortCutList.txt` / `ShortCut.ini` 拖到 ALTRun 悬浮窗口内，程序将自动批量导入；
+- **管理中心导入/导出**：右键点击系统托盘图标 $\to$ 选择 **“快捷方式管理...”**（或点击搜索框右侧齿轮 ⚙），在管理器中提供了：
+  - `📥 导入列表`：支持导入旧版列表并与当前配置合并加权；
+  - `📤 导出列表`：导出为标准清单，方便跨设备备份。
 
 ---
 
@@ -113,15 +170,15 @@
 
 | 按键 / 组合键 | 功能说明 |
 | :--- | :--- |
-| `Alt + R` | 全局唤醒 / 显示 ALTRun 主搜索框（可自定义） |
+| `Alt + R` | 全局唤醒 / 显示 ALTRun 主搜索框（可在管理中心随心自定义） |
 | `Enter` | 启动当前高亮的快捷项 |
 | `Ctrl + Enter` | **以管理员身份提权启动**当前高亮项 (Run as Administrator) |
-| `1` ~ `9` / `0` | **数字键直达**：直接启动第 1 到第 10 个搜索结果 |
-| `Tab` | 补全当前选中项的快捷词至输入框 |
+| `1` ~ `9` / `0` | **数字键直达**：直接启动第 1 到第 10 个搜索结果，无需移动光标 |
+| `Tab` | 自动补全当前选中项的快捷词至输入框，便于后续拼接参数 |
 | `↑` / `↓` | 在候选列表中上下切换选中项 |
 | `Esc` | 清空输入内容并隐藏主窗口 |
 | `鼠标双击托盘` | 显示主窗口 |
-| `右键托盘图标` | 弹出菜单（打开快捷方式管理器、切换开机自启动、退出程序） |
+| `右键托盘图标` | 弹出菜单（管理快捷方式、切换 12 款精美主题、开机自启、退出） |
 
 ---
 
