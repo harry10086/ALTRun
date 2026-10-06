@@ -27,14 +27,42 @@ namespace ALTRun.Views
         public MainWindow()
         {
             InitializeComponent();
+            ApplySavedWindowSize();
             ApplyTheme(ThemeManager.GetTheme(App.Config.Settings.Theme, App.Config.Settings.DarkMode));
             SourceInitialized += (s, e) => InitializeSystemIntegration();
             Loaded += MainWindow_Loaded;
             Closing += (s, e) =>
             {
+                SaveWindowSize();
                 e.Cancel = true;
                 HideWindow();
             };
+        }
+
+        private void ApplySavedWindowSize()
+        {
+            if (App.Config.Settings.WindowWidth >= 480)
+            {
+                Width = App.Config.Settings.WindowWidth;
+            }
+            if (App.Config.Settings.WindowHeight >= 260)
+            {
+                Height = App.Config.Settings.WindowHeight;
+            }
+        }
+
+        private void SaveWindowSize()
+        {
+            if (WindowState == WindowState.Normal && Width >= 480 && Height >= 260)
+            {
+                if (Math.Abs(App.Config.Settings.WindowWidth - Width) > 1 ||
+                    Math.Abs(App.Config.Settings.WindowHeight - Height) > 1)
+                {
+                    App.Config.Settings.WindowWidth = Math.Round(Width);
+                    App.Config.Settings.WindowHeight = Math.Round(Height);
+                    App.Config.Save();
+                }
+            }
         }
 
         public void InitializeBackgroundTray()
@@ -243,6 +271,7 @@ namespace ALTRun.Views
                 }
                 menu.Items.Add(themeMenu);
 
+
                 var itemAutoRun = new MenuItem { Header = "开机自启动", IsChecked = App.Config.Settings.AutoRun };
                 itemAutoRun.Click += (s, e) => ToggleAutoRun(itemAutoRun);
                 menu.Items.Add(itemAutoRun);
@@ -310,7 +339,7 @@ namespace ALTRun.Views
 
                 var workArea = SystemParameters.WorkArea;
                 Left = (workArea.Width - Width) / 2 + workArea.Left;
-                Top = workArea.Height * 0.22 + workArea.Top;
+                Top = Math.Max(workArea.Top + 20, Math.Min(workArea.Height * 0.22 + workArea.Top, workArea.Top + workArea.Height - Height - 20));
 
                 Show();
                 WindowState = WindowState.Normal;
@@ -323,6 +352,7 @@ namespace ALTRun.Views
 
         public void HideWindow()
         {
+            SaveWindowSize();
             SearchBox.Text = string.Empty;
             Hide();
             MemoryOptimizer.TrimMemoryAsync(300);
@@ -395,28 +425,84 @@ namespace ALTRun.Views
                 return;
             }
 
-            // 数字键直达触发 (1~9, 0)
-            if (Keyboard.Modifiers == ModifierKeys.None && SearchBox.Text.Length > 0 && !SearchBox.Text.StartsWith(">") && !SearchBox.Text.StartsWith("="))
-            {
-                int digit = -1;
-                if (e.Key >= Key.D1 && e.Key <= Key.D9)
-                {
-                    digit = e.Key - Key.D1 + 1;
-                }
-                else if (e.Key == Key.D0)
-                {
-                    digit = 10;
-                }
+            // ── 数字键直达触发机制 (支持 1~9 以及 0 表示第 10 项) ──
+            Key actualKey = e.Key;
+            if (actualKey == Key.System) actualKey = e.SystemKey;
+            if (actualKey == Key.ImeProcessed) actualKey = e.ImeProcessedKey;
 
-                if (digit > 0 && !int.TryParse(SearchBox.Text, out _))
+            int digit = -1;
+            char digitChar = '\0';
+            if (actualKey >= Key.D1 && actualKey <= Key.D9)
+            {
+                digit = actualKey - Key.D1 + 1;
+                digitChar = (char)('0' + digit);
+            }
+            else if (actualKey == Key.D0)
+            {
+                digit = 10;
+                digitChar = '0';
+            }
+            else if (actualKey >= Key.NumPad1 && actualKey <= Key.NumPad9)
+            {
+                digit = actualKey - Key.NumPad1 + 1;
+                digitChar = (char)('0' + digit);
+            }
+            else if (actualKey == Key.NumPad0)
+            {
+                digit = 10;
+                digitChar = '0';
+            }
+
+            if (digit > 0)
+            {
+                bool hasAlt = (Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt;
+                bool hasCtrl = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+                bool hasShift = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+
+                // 1. 显式修饰键直达: Alt + 数字 或 Ctrl + 数字 (最高优先级，100% 确认意图为选择序号)
+                if (hasAlt || (hasCtrl && !hasShift))
                 {
                     int targetIndex = digit - 1;
                     if (targetIndex >= 0 && targetIndex < _currentResult.Items.Count)
                     {
                         ResultListBox.SelectedIndex = targetIndex;
-                        ExecuteSelectedItem(false);
+                        bool runAsAdmin = hasCtrl;
+                        ExecuteSelectedItem(runAsAdmin);
                         e.Handled = true;
                         return;
+                    }
+                }
+
+                // 2. 单数字键智能判定:
+                // 如果输入的数字在快捷方式名称/快捷键中有匹配，则显示匹配项；若无任何匹配，则作为序号直达运行对应项
+                if (Keyboard.Modifiers == ModifierKeys.None)
+                {
+                    string currentText = SearchBox.SelectionLength == SearchBox.Text.Length ? string.Empty : SearchBox.Text;
+
+                    // 算式模式(=)和终端命令行模式(>)豁免，保证用户能正常输入数字算式与命令
+                    if (!currentText.StartsWith(">") && !currentText.StartsWith("="))
+                    {
+                        // 预测如果把当前数字追加到搜索词中
+                        string predictedQuery = currentText + digitChar;
+
+                        // 检索整个快捷方式库是否包含或匹配该数字组合 (如 12306, 1hshutdown, c2 等)
+                        var predictedResult = SearchEngine.Search(predictedQuery, App.Config.Settings.ShortCuts);
+
+                        // 如果有匹配的快捷方式: 放行输入到搜索框中展示匹配项
+                        if (predictedResult.Items.Count > 0)
+                        {
+                            return;
+                        }
+
+                        // 如果没有任何快捷方式匹配该数字组合: 100% 为序号直达操作
+                        int targetIndex = digit - 1;
+                        if (targetIndex >= 0 && targetIndex < _currentResult.Items.Count)
+                        {
+                            ResultListBox.SelectedIndex = targetIndex;
+                            ExecuteSelectedItem(false);
+                            e.Handled = true;
+                            return;
+                        }
                     }
                 }
             }
@@ -437,9 +523,68 @@ namespace ALTRun.Views
             }
         }
 
+        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.OriginalSource is DependencyObject dep)
+            {
+                if (FindVisualParent<System.Windows.Controls.TextBox>(dep) != null ||
+                    FindVisualParent<System.Windows.Controls.Button>(dep) != null ||
+                    FindVisualParent<System.Windows.Controls.Primitives.ScrollBar>(dep) != null ||
+                    FindVisualParent<ListBoxItem>(dep) != null)
+                {
+                    return;
+                }
+            }
+
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                try
+                {
+                    DragMove();
+                }
+                catch { }
+            }
+        }
+
+        private static T? FindVisualParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            DependencyObject? parentObj = child;
+            while (parentObj != null)
+            {
+                if (parentObj is T parent)
+                    return parent;
+                if (parentObj is Visual || parentObj is System.Windows.Media.Media3D.Visual3D)
+                    parentObj = VisualTreeHelper.GetParent(parentObj);
+                else
+                    parentObj = LogicalTreeHelper.GetParent(parentObj);
+            }
+            return null;
+        }
+
+        private void ResultListBox_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+
+            if (e.OriginalSource is DependencyObject dep)
+            {
+                if (FindVisualParent<System.Windows.Controls.Primitives.ScrollBar>(dep) != null) return;
+
+                var item = FindVisualParent<ListBoxItem>(dep);
+                if (item != null && item.DataContext is ShortCutItem shortcut)
+                {
+                    ResultListBox.SelectedItem = shortcut;
+                    bool runAsAdmin = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+                    ExecuteSelectedItem(runAsAdmin);
+                    e.Handled = true;
+                }
+            }
+        }
+
         private void ResultListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            ExecuteSelectedItem(false);
+            if (App.Config.Settings.SingleClickToRun) return;
+
+            bool runAsAdmin = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+            ExecuteSelectedItem(runAsAdmin);
         }
 
         private void Window_Deactivated(object sender, EventArgs e)
@@ -543,6 +688,7 @@ namespace ALTRun.Views
 
         protected override void OnClosed(EventArgs e)
         {
+            SaveWindowSize();
             _trayIconService?.Dispose();
             _globalHotKey?.Dispose();
             base.OnClosed(e);

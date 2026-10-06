@@ -207,6 +207,8 @@ namespace ALTRun.Views
             }
         }
 
+
+
         private void BtnToggleTheme_Click(object sender, RoutedEventArgs e)
         {
             var allThemes = ThemeManager.Themes;

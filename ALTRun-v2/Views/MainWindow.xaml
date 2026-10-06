@@ -4,17 +4,27 @@
         Title="ALTRun"
         Width="660"
         Height="460"
-        WindowStartupLocation="CenterScreen"
+        MinWidth="480"
+        MinHeight="260"
+        WindowStartupLocation="Manual"
         WindowStyle="None"
-        ResizeMode="NoResize"
+        ResizeMode="CanResize"
         Background="Transparent"
         Topmost="True"
         ShowInTaskbar="False"
         FontFamily="Segoe UI Variable Display, Microsoft YaHei UI, sans-serif"
         PreviewKeyDown="Window_PreviewKeyDown"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
         Deactivated="Window_Deactivated"
         Drop="Window_Drop"
         AllowDrop="True">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0"
+                      ResizeBorderThickness="6"
+                      GlassFrameThickness="0"
+                      CornerRadius="0"/>
+    </WindowChrome.WindowChrome>
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
@@ -93,6 +103,9 @@
                          Background="Transparent"
                          BorderThickness="0"
                          VerticalAlignment="Center"
+                         InputMethod.IsInputMethodEnabled="True"
+                         InputMethod.PreferredImeState="Off"
+                         InputMethod.PreferredImeConversionMode="Alphanumeric"
                          TextChanged="SearchBox_TextChanged"/>
 
                 <!-- 占位符文字 -->
@@ -146,6 +159,7 @@
                      BorderThickness="0"
                      Padding="10,6"
                      ItemContainerStyle="{StaticResource ResultItemStyle}"
+                     PreviewMouseLeftButtonUp="ResultListBox_PreviewMouseLeftButtonUp"
                      MouseDoubleClick="ResultListBox_MouseDoubleClick">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
@@ -229,18 +243,21 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="↵ 启动" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
+                        <TextBlock Text="↵ / 单击 启动" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
                         <TextBlock Text="Ctrl+↵ 提权运行" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
                         <TextBlock Text="0~9 键直达" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
                         <TextBlock Text="Tab 补全" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
                         <TextBlock Text="Esc 隐藏" FontSize="12" Foreground="{DynamicResource TextMutedBrush}"/>
                     </StackPanel>
 
-                    <TextBlock Grid.Column="1"
-                               Text="支持拖入 ShortCutList.txt / 文件直接添加"
-                               FontSize="12"
-                               Foreground="{DynamicResource TextMutedBrush}"
-                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="支持拖入 ShortCutList.txt / 文件直接添加"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,0"/>
+                        <ResizeGrip VerticalAlignment="Bottom" HorizontalAlignment="Right" Opacity="0.45" Cursor="SizeNWSE"/>
+                    </StackPanel>
                 </Grid>
             </Border>
         </Grid>

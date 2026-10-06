@@ -14,7 +14,10 @@ namespace ALTRun.Services
         public bool AutoRun { get; set; } = true;
         public string Theme { get; set; } = "obsidian";
         public bool DarkMode { get; set; } = true;
-        public double WindowWidth { get; set; } = 640;
+        public double WindowWidth { get; set; } = 660;
+        public double WindowHeight { get; set; } = 460;
+        public bool SingleClickToRun { get; set; } = true;
+        public bool EnableNumberKeyDirect { get; set; } = true;
         public bool HideWhenLostFocus { get; set; } = true;
         public bool RunAsAdminShortcut { get; set; } = true;
         public List<ShortCutItem> ShortCuts { get; set; } = new();

@@ -8,7 +8,7 @@
 *极简键盘交互 · 沉浸 Fluent Design · 拼音首字母模糊检索 · 零依赖绿色单文件*
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D4?logo=windows)](https://www.microsoft.com/)
-[![Version](https://img.shields.io/badge/Version-2.0.2-success)](#)
+[![Version](https://img.shields.io/badge/Version-2.0.3-success)](#)
 [![Framework](https://img.shields.io/badge/.NET-8.0%20WPF-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Size](https://img.shields.io/badge/Size-~216KB-brightgreen)](#)
 
@@ -36,6 +36,8 @@
 
 ### 1. 现代化视觉体验 (Win10 / Win11 Fluent & 12款精调主题)
 - **DWM 原生特性**：享受 Win11 系统级圆角、立体发光投影、失焦淡出动效。
+- **窗口随心拖拽移动与呼出自动复位**：支持按住顶部提示区、底部状态栏或空白边框自由拖拽移动；呼出时自动恢复屏幕黄金视线居中位置（无需记忆临时偏移坐标）。
+- **窗口尺寸自由拉伸与持久记忆**：四边和四角均可自由缩放拉伸，右下角带有微质感调整手柄（ResizeGrip），尺寸调整后自动持久记忆。
 - **12款设计师主题自由切换（5款暗色 + 7款亮色）**：
   - **🌙 暗色系列**：`黑曜灵动` (Raycast极客风)、`东京之夜` (经典深靛紫)、`赛博薄荷` (护眼极客黑绿)、`暖咖摩卡` (Catppuccin温润拿铁)、`经典系统` (Win11 原生深蓝)；
   - **☀️ 浅色系列**：`珍珠晨曦` (象牙雅白与天青海风)、`樱花粉雪` (浪漫柔白与樱粉高光)、`浅山抹茶` (护眼米白与草木抹茶绿)、`暖阳琥珀` (温馨羊皮纸与蜜金)、`极光白昼` (北欧冷灰雪白与极光靛)、`紫藤花语` (唯美薰衣草淡紫)、`蜜柑苏打` (元气纯白与晨曦暖橙)。
@@ -45,12 +47,18 @@
 - **大字体舒适管理中心**：快捷方式设置窗口采用 16px 清晰大字号、48px 宽敞行高与高对比度配色规范，彻底告别眯眼看字，选中行与各列信息清晰可辨。
 - **一键浏览添加程序/目录**：新增快捷项时，支持一键点击浏览选取可执行文件（`.exe`、`.lnk`）或文件夹，并自动提取名称与拼音快捷词。
 ![altrun3](https://github.mianao.info/https://raw.githubusercontent.com/harry10086/picx-images-hosting/master/altrun/altrun3.webp)
-### 2. 极速键盘操作与交互 (Keystroke Efficiency)
+
+### 2. 极速键盘与鼠标操作交互 (Interaction Efficiency)
 - **自由定制全局热键**：支持任意组合 `Alt / Ctrl / Shift / Win + 主键`（如 `Alt+Space`、`Ctrl+Space`、`Alt+R`），在管理中心即可一键修改保存并即时生效。
-- **数字键直达 (0~9)**：候选结果左侧清晰标注 `1` 到 `0` 序号，按对应数字键直接触发，无需手动回车。
+- **鼠标单击即运行**：鼠标左键单击任意快捷项直接极速启动并隐藏窗口，同时支持 `Ctrl + 单击` 提权运行。
+- **数字键智能动态决策**：
+  - **有匹配时搜索**：当输入数字后若库中有包含该数字的快捷方式（如搜索 `12306`、`1hshutdown`），自动进入搜索过滤；
+  - **无匹配时直达**：当输入的数字无匹配项时（如输入 `c` 后按 `2`，库中无 `c2` 项），自动判定为序号直达，秒级启动对应项；
+  - 全面支持主键盘与右手小键盘数字键（NumPad），原生隔离中文输入法干扰。
+- **Alt+数字 / Ctrl+数字 无条件直达**：支持 `Alt+1~9/0` 或 `Ctrl+1~9/0`（提权）保底直达候选序号。
 - **管理员身份提权启动**：
-  - `Enter`：常规启动；
-  - `Ctrl + Enter`：自动通过 UAC 提权（Run as Administrator）启动目标程序。
+  - `Enter` 或 `鼠标单击`：常规启动；
+  - `Ctrl + Enter` 或 `Ctrl + 单击`：自动通过 UAC 提权（Run as Administrator）启动目标程序。
 - **Tab 智能补全**：按 `Tab` 键将当前高亮项的快捷短语填入输入框，方便追加参数。
 - **失焦自动隐藏**：点击外部区域或按下 `Esc` 键自动清空并优雅隐藏，绝不抢占工作区焦点。
 
