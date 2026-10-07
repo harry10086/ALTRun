@@ -98,15 +98,25 @@ jobs:
             '---',
             '',
             '### 🌟 核心特性与更新 (Features)',
-            '- 采用 **Windows 11 Fluent Design**（原生圆角、DWM 深度渲染阴影、多主题配色）；',
-            '- 提供 **12 款精调主题风格（5 款暗色 + 7 款亮色）**，告别单调蓝黑灰；',
-            '- 支持 **拼音首字母模糊检索**（如 ``jsq`` / ``calc`` $\to$ 计算器，``snip`` $\to$ 截图工具）；',
-            '- **拼音声母检索精准度修复**：更正声母 n 的编码区间（0xC4C3），解决“脑”（nao）、“南”、“拿”等汉字被错误归为 m 的问题，确保“我的电脑”（wddn）等项目精准匹配；',
-            '- **开机自动运行双重保障**：自动创建 Windows 启动文件夹快捷方式与注册表项；',
-            '- 彻底解决 Win11 剪贴板竞争与 OLE 弹窗报错；',
-            '- 优化空闲常驻内存管理，常驻内存仅数兆字节。'
+            '- **⚡ 本机已安装软件智能扫描与一键导入**：自动检索本机开始菜单与桌面软件，智能过滤卸载项/说明文档，自动提取拼音首字母缩写；',
+            '- **🎉 首次运行极简向导**：全新环境无配置时一键构建开箱常用快捷库；',
+            '- **🎨 12 款精选高质感主题**：5 款暗色 + 7 款亮色，支持托盘/管理器一键无缝热切换；',
+            '- **⌨️ 自定义全局唤醒热键**：支持 Alt/Ctrl/Shift/Win 任意按键组合；',
+            '- **🔤 拼音首字母模糊检索**：输入汉字拼音首字母快速过滤，支持快捷数字直达；',
+            '- **🏷️ 快捷方式管理中心版本号标识**：管理中心与窗口标题实时清晰显示当前版本号（`版本 v2.0.4`）；',
+            '- **🛡️ 开机自启动双重保障**：自动创建 Windows 启动文件夹快捷方式与注册表项，移动目录自适应修复；',
+            '- **🍃 极简常驻内存**：软件渲染引擎与空闲工作集主动修剪，常驻内存维持在 ~1MB 极低水平。'
           )
           $lines | Set-Content -Path "release-notes.md" -Encoding utf8
+
+      - name: Clean up Obsolete Releases
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          Write-Host "Cleaning up obsolete releases and tags if present..."
+          gh release delete v2.0.5 -y --cleanup-tag || true
+          gh release delete v2.0.4 -y || true
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2

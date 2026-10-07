@@ -107,8 +107,8 @@
                 <Button x:Name="BtnToggleTheme" Content="🎨 快速换主题" Style="{StaticResource ModernBtn}" Click="BtnToggleTheme_Click" ToolTip="在预置的高质感主题间快速循环切换"/>
 
                 <!-- 版本号标识 -->
-                <Border CornerRadius="5" Background="{DynamicResource BadgeBg}" Padding="10,6" Margin="6,0,0,0" VerticalAlignment="Center" ToolTip="当前 ALTRun 版本">
-                    <TextBlock x:Name="TxtVersion" Text="v2.0.4" FontSize="13" FontWeight="Bold" FontFamily="Cascadia Code, Consolas, monospace" Foreground="{DynamicResource AccentBrush}"/>
+                <Border x:Name="BadgeVersion" CornerRadius="5" Background="{DynamicResource BadgeBg}" Padding="10,6" Margin="6,0,0,0" VerticalAlignment="Center" ToolTip="当前 ALTRun 运行版本">
+                    <TextBlock x:Name="TxtVersion" Text="版本 v2.0.4" FontSize="13" FontWeight="Bold" FontFamily="Segoe UI Variable Display, Cascadia Code, Consolas, monospace" Foreground="{DynamicResource AccentBrush}"/>
                 </Border>
             </StackPanel>
         </Grid>

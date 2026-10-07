@@ -38,12 +38,16 @@ namespace ALTRun.Views
                 var ver = typeof(ManageWindow).Assembly.GetName().Version;
                 string verStr = ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "v2.0.4";
                 Title = $"ALTRun {verStr} - 快捷方式管理中心";
-                TxtVersion.Text = verStr;
+                TxtVersion.Text = $"版本 {verStr}";
+                if (BadgeVersion != null)
+                {
+                    BadgeVersion.ToolTip = $"当前 ALTRun 运行版本: {verStr}";
+                }
             }
             catch
             {
                 Title = "ALTRun v2.0.4 - 快捷方式管理中心";
-                TxtVersion.Text = "v2.0.4";
+                TxtVersion.Text = "版本 v2.0.4";
             }
         }
 
