@@ -1,0 +1,144 @@
+<Window x:Class="ALTRun.Views.WelcomeWizardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="欢迎使用 ALTRun 2.0"
+        Height="480"
+        Width="640"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        FontFamily="Segoe UI Variable Display, Microsoft YaHei UI, sans-serif">
+
+    <Border Background="#1C1C22"
+            BorderBrush="#40FFFFFF"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="32,28">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="30" Color="#000000" Opacity="0.6" Direction="270" ShadowDepth="6"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- 标题与图标 -->
+                <RowDefinition Height="*"/>    <!-- 说明介绍卡片 -->
+                <RowDefinition Height="Auto"/> <!-- 按钮操作区 -->
+            </Grid.RowDefinitions>
+
+            <!-- 1. 标题区 -->
+            <StackPanel Grid.Row="0" Margin="0,0,0,20">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="🚀" FontSize="28" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="欢迎使用 ALTRun 2.0" FontSize="22" FontWeight="Bold" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="极简、极速、无感常驻的经典键盘快捷启动器" FontSize="13" Foreground="#94A3B8" Margin="40,4,0,0"/>
+            </StackPanel>
+
+            <!-- 2. 说明卡片 -->
+            <Border Grid.Row="1"
+                    Background="#24242C"
+                    BorderBrush="#25FFFFFF"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="20,16"
+                    Margin="0,0,0,24">
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="💡 首次运行初始化设置" FontSize="15" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10"/>
+                    <TextBlock Text="ALTRun 可以自动扫描您电脑上已安装的常用应用（如 Chrome、微信、QQ、VSCode 等），并自动生成快捷拼音缩写，让您开箱即可输入关键词快速启动。"
+                               FontSize="13" Foreground="#E2E8F0" TextWrapping="Wrap" LineHeight="20" Margin="0,0,0,12"/>
+
+                    <Border Background="#1A1A20" CornerRadius="6" Padding="12,10">
+                        <StackPanel>
+                            <TextBlock Text="✓ 智能过滤机制：自动剔除所有卸载程序、帮助手册与更新向导" FontSize="12" Foreground="#10B981" Margin="0,0,0,4"/>
+                            <TextBlock Text="✓ 极致纯文本轻量：不提取多余图片，零内存常驻负担" FontSize="12" Foreground="#10B981" Margin="0,0,0,4"/>
+                            <TextBlock Text="✓ 随时可管：以后可在管理中心随时重新扫描或自定义修改" FontSize="12" Foreground="#10B981"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- 3. 操作按钮 -->
+            <StackPanel Grid.Row="2">
+                <!-- 加载中动画提示 (默认隐藏) -->
+                <StackPanel x:Name="PnlScanning" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,12" Visibility="Collapsed">
+                    <TextBlock Text="⏳ 正在扫描并为您导入常用软件，请稍候..." FontSize="14" Foreground="#38BDF8"/>
+                </StackPanel>
+
+                <Grid x:Name="PnlButtons">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 一键推荐导入 -->
+                    <Button x:Name="BtnAutoImport"
+                            Grid.Column="0"
+                            Height="42"
+                            Background="#38BDF8"
+                            Foreground="#000000"
+                            BorderThickness="0"
+                            FontSize="14"
+                            FontWeight="Bold"
+                            Cursor="Hand"
+                            Click="BtnAutoImport_Click">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                                    <TextBlock Text="⚡ 自动扫描并导入常用软件" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <!-- 手动挑选 -->
+                    <Button x:Name="BtnCustomSelect"
+                            Grid.Column="1"
+                            Height="42"
+                            Padding="16,0"
+                            Margin="10,0,0,0"
+                            Background="#2E2E38"
+                            Foreground="#FFFFFF"
+                            BorderBrush="#40FFFFFF"
+                            BorderThickness="1"
+                            FontSize="13"
+                            FontWeight="SemiBold"
+                            Cursor="Hand"
+                            Click="BtnCustomSelect_Click">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                    <TextBlock Text="📋 挑选导入..." HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+
+                    <!-- 跳过 -->
+                    <Button x:Name="BtnSkip"
+                            Grid.Column="2"
+                            Height="42"
+                            Padding="14,0"
+                            Margin="10,0,0,0"
+                            Background="Transparent"
+                            Foreground="#94A3B8"
+                            BorderThickness="0"
+                            FontSize="13"
+                            Cursor="Hand"
+                            Click="BtnSkip_Click">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                    <TextBlock Text="暂不导入" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </Grid>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

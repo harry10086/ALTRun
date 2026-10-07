@@ -1,4 +1,4 @@
-# ALTRun v2.0 - 现代极速快速启动利器
+﻿# ALTRun v2.0 - 现代极速快速启动利器
 
 <div align="center">
 
@@ -8,7 +8,7 @@
 *极简键盘交互 · 沉浸 Fluent Design · 拼音首字母模糊检索 · 零依赖绿色单文件*
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D4?logo=windows)](https://www.microsoft.com/)
-[![Version](https://img.shields.io/badge/Version-2.0.3-success)](#)
+[![Version](https://img.shields.io/badge/Version-2.0.4-success)](#)
 [![Framework](https://img.shields.io/badge/.NET-8.0%20WPF-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Size](https://img.shields.io/badge/Size-~216KB-brightgreen)](#)
 
@@ -28,7 +28,7 @@
 - 支持**拼音首字母与全拼模糊检索**（打 `wx` $\to$ `微信`，打 `yy` $\to$ `网易云音乐`）；
 - 引入**命令行终端直接执行**（`>` 前缀）与**即时数学计算器**（`=` 前缀）；
 - 完美支持 **2K / 4K 屏幕 Per-Monitor V2 矢量级高清缩放**；
-- 绿色独立运行，打包产物仅 **~216 KB**，空闲常驻内存经过纯软件渲染与工作集主动修剪优化，稳定保持在 **~3.8 MB** 极低水平。
+- 绿色独立运行，打包产物仅 **~216 KB**，空闲常驻内存经过纯软件渲染与工作集主动修剪优化，稳定保持在 **~1 MB** 极低水平。
 ![altrun1](https://github.mianao.info/https://raw.githubusercontent.com/harry10086/picx-images-hosting/master/altrun/altrun1.webp)
 ---
 
@@ -46,6 +46,12 @@
 - **Per-Monitor V2 DPI 高清**：在 100%、125%、150%、200% 等任意缩放比例下，文字与图标始终细腻锐利。
 - **大字体舒适管理中心**：快捷方式设置窗口采用 16px 清晰大字号、48px 宽敞行高与高对比度配色规范，彻底告别眯眼看字，选中行与各列信息清晰可辨。
 - **一键浏览添加程序/目录**：新增快捷项时，支持一键点击浏览选取可执行文件（`.exe`、`.lnk`）或文件夹，并自动提取名称与拼音快捷词。
+- **⚡ 本机已安装软件智能扫描与首次运行向导 (v2.0.4 新增)**：
+  - **首次启动向导**：全新环境无配置文件时，主程序启动自动展示极简向导卡片，一键扫描并收录常用软件（如 Chrome、微信、QQ、VSCode 等）；
+  - **随时按需扫描**：在【管理快捷方式】中心或托盘右键菜单随时点击「⚡ 扫描已安装软件」，勾选新装软件一键增量合并；
+  - **严苛智能降噪**：内置启发式黑名单机制，自动剔除所有卸载程序（`Uninstall`）、说明文档（`Readme`）、帮助手册（`Help`）与更新修复向导，杜绝误触卸载风险；
+  - **自动推导快捷短词**：中文应用自动生成拼音缩写（微信 $\to$ `wx`，网易云 $\to$ `wyy`），英文应用智能提取首字母或常见短键（Chrome $\to$ `chrome`，VSCode $\to$ `code`），且自动去重防冲突；
+  - **极致纯文本架构**：与原有快捷方式完全一致，零图标解码与额外渲染开销，常驻内存仅增加几十 KB，保持极致的秒开与轻量。
 ![altrun3](https://github.mianao.info/https://raw.githubusercontent.com/harry10086/picx-images-hosting/master/altrun/altrun3.webp)
 
 ### 2. 极速键盘与鼠标操作交互 (Interaction Efficiency)
@@ -234,6 +240,26 @@ dotnet publish ALTRun-v2/ALTRun.csproj -c Release -r win-x64 --no-self-contained
 1. **剪贴板并发防护**：旧版一次获取失败便抛出 `Cannot open clipboard`；新版内置并发重试等待机制（5 次重试保护），彻底杜绝与 Win11 云剪贴板 (`Win+V`) 的锁竞争冲突。
 2. **现代化 COM 与 Shell 托管调用**：规避了旧版 `ResolveLink` 中未处理的 `OleCheck` 崩溃风险，支持 Win11 复杂的现代应用命名空间与特殊协议。
 3. **UPI 特权隔离解除**：弃用旧版写死在 Manifest 中的 `requireAdministrator`，改用标准的 `asInvoker` 普通权限运行，完美支持从资源管理器拖入文件，仅在用户按下 `Ctrl+Enter` 时按需提权。
+
+---
+
+## 📝 版本更新历史 (Changelog)
+
+- **v2.0.4 (2026-10)**:
+  - 🌟 **新增本机已装软件智能扫描与首次运行向导**：
+    - 深入 Windows 开始菜单与桌面快捷方式，支持一键批量检索并导入常用软件（如 Chrome、微信、QQ、VSCode 等）；
+    - 内置严苛的黑名单与路径降噪算法，彻底屏蔽 `C:\Windows\`（System32/SysWOW64）系统组件、Windows 管理工具、`*setup*`、`*server*`、`*deployer*`、Windows Installer 缓存及长字符串/GUID 垃圾项，规避误触与干扰；
+    - 全新启动检测无配置时，自动弹出卡片式向导引导一键收录常用软件，实现零门槛开箱即用；
+    - 管理中心工具栏与系统托盘菜单均新增「⚡ 扫描已安装软件」快捷入口，支持表格列宽自由拖拽调整与悬浮提示；
+    - 坚持纯文本极简架构，零图片解码开销，常驻运行内存与旧版本一致，轻巧无感。
+  - 🖱️ **鼠标与交互体验深度打磨**：
+    - 托盘右键菜单增加子菜单斜向平滑移动防抖保护（Diagonal Movement Buffer），彻底解决鼠标斜移切入主题二级菜单时容易闪退消失的问题；
+    - 快捷方式管理中心工具栏与窗口标题栏实时展示当前程序版本号；
+    - 单击候选项目即刻运行，并支持 `Ctrl + 单击` 提权运行；
+    - 数字键智能动态决策：有匹配项时进入搜索，无匹配项时判定为序号直达秒级启动。
+  - 🪟 **窗口尺寸与布局体验优化**：
+    - 解决候选列表滚动位置残留问题（重新唤醒或输入新搜索词时自动平滑复位至顶部第 1 项）；
+    - 全面支持窗口随意拖拽、尺寸自由拉伸调整与窗口大小持久记忆。
 
 ---
 

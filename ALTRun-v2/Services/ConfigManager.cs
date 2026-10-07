@@ -29,6 +29,7 @@ namespace ALTRun.Services
         private readonly string _jsonConfigPath;
 
         public AppSettings Settings { get; private set; } = new();
+        public bool IsFirstRun { get; private set; } = false;
 
         public ConfigManager()
         {
@@ -97,6 +98,7 @@ namespace ALTRun.Services
             }
 
             // 3. 首次启动开箱即用：直接加载内置 Win10/11 现代快捷列表
+            IsFirstRun = true;
             Settings.ShortCuts = GenerateModernDefaultShortcuts();
             RefreshPinyinCache();
             Save();

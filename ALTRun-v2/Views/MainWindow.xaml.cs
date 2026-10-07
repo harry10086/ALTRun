@@ -237,6 +237,14 @@ namespace ALTRun.Views
                 itemManage.Click += (s, e) => App.OpenManageWindow();
                 menu.Items.Add(itemManage);
 
+                var itemScan = new MenuItem { Header = "⚡ 扫描已安装软件..." };
+                itemScan.Click += (s, e) =>
+                {
+                    var scanWin = new ScanAppsWindow();
+                    scanWin.Show();
+                };
+                menu.Items.Add(itemScan);
+
                 menu.Items.Add(new Separator());
 
                 var themeMenu = new MenuItem { Header = "🎨 外观主题风格" };
@@ -271,7 +279,6 @@ namespace ALTRun.Views
                 }
                 menu.Items.Add(themeMenu);
 
-
                 var itemAutoRun = new MenuItem { Header = "开机自启动", IsChecked = App.Config.Settings.AutoRun };
                 itemAutoRun.Click += (s, e) => ToggleAutoRun(itemAutoRun);
                 menu.Items.Add(itemAutoRun);
@@ -281,6 +288,99 @@ namespace ALTRun.Views
                 var itemExit = new MenuItem { Header = "退出 ALTRun" };
                 itemExit.Click += (s, e) => System.Windows.Application.Current.Shutdown();
                 menu.Items.Add(itemExit);
+
+                // 启用子菜单斜向平滑移动防抖保护 (解决鼠标斜切掠过相邻项时子菜单闪退的问题)
+                System.Windows.Threading.DispatcherTimer? themeCloseTimer = null;
+                System.Windows.Threading.DispatcherTimer? switchTimer = null;
+                MenuItem? pendingItem = null;
+
+                bool IsSubmenuMouseOver(MenuItem parent)
+                {
+                    foreach (var it in parent.Items)
+                    {
+                        if (it is MenuItem mi && (mi.IsMouseOver || mi.IsHighlighted))
+                            return true;
+                    }
+                    return false;
+                }
+
+                themeMenu.MouseEnter += (s, e) =>
+                {
+                    themeCloseTimer?.Stop();
+                    themeMenu.IsSubmenuOpen = true;
+                };
+
+                themeMenu.MouseLeave += (s, e) =>
+                {
+                    themeCloseTimer?.Stop();
+                    themeCloseTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
+                    themeCloseTimer.Tick += (ts, te) =>
+                    {
+                        themeCloseTimer.Stop();
+                        if (!themeMenu.IsMouseOver && !IsSubmenuMouseOver(themeMenu))
+                        {
+                            themeMenu.IsSubmenuOpen = false;
+                        }
+                    };
+                    themeCloseTimer.Start();
+                };
+
+                foreach (var obj in themeMenu.Items)
+                {
+                    if (obj is MenuItem mi)
+                    {
+                        mi.MouseEnter += (s, e) =>
+                        {
+                            themeCloseTimer?.Stop();
+                            themeMenu.IsSubmenuOpen = true;
+                        };
+                    }
+                }
+
+                foreach (var obj in menu.Items)
+                {
+                    if (obj is MenuItem item && item != themeMenu)
+                    {
+                        item.PreviewMouseMove += (s, e) =>
+                        {
+                            if (themeMenu.IsSubmenuOpen)
+                            {
+                                e.Handled = true;
+                                if (pendingItem != item)
+                                {
+                                    pendingItem = item;
+                                    switchTimer?.Stop();
+                                    switchTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
+                                    switchTimer.Tick += (ts, te) =>
+                                    {
+                                        switchTimer.Stop();
+                                        if (item.IsMouseOver)
+                                        {
+                                            themeMenu.IsSubmenuOpen = false;
+                                            item.Focus();
+                                        }
+                                    };
+                                    switchTimer.Start();
+                                }
+                            }
+                        };
+
+                        item.MouseLeave += (s, e) =>
+                        {
+                            if (pendingItem == item)
+                            {
+                                switchTimer?.Stop();
+                                pendingItem = null;
+                            }
+                        };
+                    }
+                }
+
+                menu.Closed += (s, e) =>
+                {
+                    themeCloseTimer?.Stop();
+                    switchTimer?.Stop();
+                };
 
                 var helper = new WindowInteropHelper(this);
                 SetForegroundWindow(helper.Handle);
@@ -341,6 +441,9 @@ namespace ALTRun.Views
                 Left = (workArea.Width - Width) / 2 + workArea.Left;
                 Top = Math.Max(workArea.Top + 20, Math.Min(workArea.Height * 0.22 + workArea.Top, workArea.Top + workArea.Height - Height - 20));
 
+                PerformSearch();
+                ResetListScrollToTop();
+
                 Show();
                 WindowState = WindowState.Normal;
                 Activate();
@@ -354,6 +457,7 @@ namespace ALTRun.Views
         {
             SaveWindowSize();
             SearchBox.Text = string.Empty;
+            ResetListScrollToTop();
             Hide();
             MemoryOptimizer.TrimMemoryAsync(300);
         }
@@ -374,6 +478,35 @@ namespace ALTRun.Views
             {
                 ResultListBox.SelectedIndex = 0;
             }
+            ResetListScrollToTop();
+        }
+
+        private void ResetListScrollToTop()
+        {
+            try
+            {
+                if (_currentResult.Items.Count > 0 && ResultListBox.Items.Count > 0)
+                {
+                    ResultListBox.ScrollIntoView(_currentResult.Items[0]);
+                }
+                var scrollViewer = FindVisualChild<ScrollViewer>(ResultListBox);
+                scrollViewer?.ScrollToTop();
+
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        var sv = FindVisualChild<ScrollViewer>(ResultListBox);
+                        sv?.ScrollToTop();
+                        if (_currentResult.Items.Count > 0 && ResultListBox.Items.Count > 0)
+                        {
+                            ResultListBox.ScrollIntoView(_currentResult.Items[0]);
+                        }
+                    }
+                    catch { }
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
+            }
+            catch { }
         }
 
         private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -557,6 +690,22 @@ namespace ALTRun.Views
                     parentObj = VisualTreeHelper.GetParent(parentObj);
                 else
                     parentObj = LogicalTreeHelper.GetParent(parentObj);
+            }
+            return null;
+        }
+
+        private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            if (parent == null) return null;
+            int childCount = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < childCount; i++)
+            {
+                DependencyObject child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild)
+                    return typedChild;
+                var foundChild = FindVisualChild<T>(child);
+                if (foundChild != null)
+                    return foundChild;
             }
             return null;
         }

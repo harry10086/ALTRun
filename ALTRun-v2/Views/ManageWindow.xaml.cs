@@ -24,10 +24,27 @@ namespace ALTRun.Views
         public ManageWindow()
         {
             InitializeComponent();
+            InitVersionInfo();
             InitHotKeyControls();
             var currentTheme = ThemeManager.GetTheme(App.Config.Settings.Theme, App.Config.Settings.DarkMode);
             ApplyTheme(currentTheme);
             Loaded += ManageWindow_Loaded;
+        }
+
+        private void InitVersionInfo()
+        {
+            try
+            {
+                var ver = typeof(ManageWindow).Assembly.GetName().Version;
+                string verStr = ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "v2.0.4";
+                Title = $"ALTRun {verStr} - 快捷方式管理中心";
+                TxtVersion.Text = verStr;
+            }
+            catch
+            {
+                Title = "ALTRun v2.0.4 - 快捷方式管理中心";
+                TxtVersion.Text = "v2.0.4";
+            }
         }
 
         private void ManageWindow_Loaded(object sender, RoutedEventArgs e)
@@ -370,6 +387,19 @@ namespace ALTRun.Views
             ShortcutGrid.SelectedItem = newItem;
             EditShortCut.Focus();
             EditShortCut.SelectAll();
+        }
+
+        private void BtnScanApps_Click(object sender, RoutedEventArgs e)
+        {
+            var scanWin = new ScanAppsWindow
+            {
+                Owner = this
+            };
+
+            if (scanWin.ShowDialog() == true)
+            {
+                RefreshGrid(TxtFilter.Text);
+            }
         }
 
         private void BtnDelete_Click(object sender, RoutedEventArgs e)

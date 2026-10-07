@@ -155,6 +155,7 @@
                      Grid.Row="2"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     ScrollViewer.CanContentScroll="False"
                      Background="Transparent"
                      BorderThickness="0"
                      Padding="10,6"

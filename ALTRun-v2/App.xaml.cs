@@ -82,6 +82,13 @@ namespace ALTRun
             MainWindow = mainWindow;
             mainWindow.InitializeBackgroundTray();
 
+            // 首次运行向导（如果是全新运行无配置，引导用户扫描已安装软件）
+            if (Config.IsFirstRun)
+            {
+                var wizard = new WelcomeWizardWindow();
+                wizard.ShowDialog();
+            }
+
             // 启动轻量后台空闲内存维护定时器（托盘后台休眠时维持极小物理内存常驻）
             StartIdleMemoryMaintenance();
         }
