@@ -1,4 +1,4 @@
-﻿# ALTRun v2.0 - 现代极速快速启动利器
+# ALTRun v2.0 - 现代极速快速启动利器
 
 <div align="center">
 
@@ -8,7 +8,7 @@
 *极简键盘交互 · 沉浸 Fluent Design · 拼音首字母模糊检索 · 零依赖绿色单文件*
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D4?logo=windows)](https://www.microsoft.com/)
-[![Version](https://img.shields.io/badge/Version-2.0.4-success)](#)
+[![Version](https://img.shields.io/badge/Version-2.0.5-success)](#)
 [![Framework](https://img.shields.io/badge/.NET-8.0%20WPF-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Size](https://img.shields.io/badge/Size-~216KB-brightgreen)](#)
 
@@ -244,6 +244,10 @@ dotnet publish ALTRun-v2/ALTRun.csproj -c Release -r win-x64 --no-self-contained
 ---
 
 ## 📝 版本更新历史 (Changelog)
+
+- **v2.0.5 (2026-10)**:
+  - 🛠️ **修复已安装软件扫描复选框勾选问题**：修复扫描窗口中复选框 `IsEnabled` 逻辑反向绑定的缺陷，支持手动自由勾选/取消勾选任意新软件，并实现已存在项目的智能禁用与状态悬浮说明；
+  - 🎨 **精简管理中心界面布局**：移除快捷方式管理中心右上角冗余的版本号徽章与提示，统一由窗口左上角标题栏规范展示，界面更清爽聚焦。
 
 - **v2.0.4 (2026-10)**:
   - 🌟 **新增本机已装软件智能扫描与首次运行向导**：

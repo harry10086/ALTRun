@@ -5,20 +5,67 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.ComponentModel;
 using ALTRun.Models;
 
 namespace ALTRun.Services
 {
-    public class ScannedAppItem
+    public class ScannedAppItem : INotifyPropertyChanged
     {
-        public bool IsSelected { get; set; } = true;
+        private bool _isSelected = true;
+        private string _shortCut = string.Empty;
+
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                if (_isSelected != value)
+                {
+                    _isSelected = value;
+                    OnPropertyChanged(nameof(IsSelected));
+                    OnPropertyChanged(nameof(ToolTipText));
+                }
+            }
+        }
+
         public string Name { get; set; } = string.Empty;
-        public string ShortCut { get; set; } = string.Empty;
+
+        public string ShortCut
+        {
+            get => _shortCut;
+            set
+            {
+                if (_shortCut != value)
+                {
+                    _shortCut = value;
+                    OnPropertyChanged(nameof(ShortCut));
+                }
+            }
+        }
+
         public string TargetPath { get; set; } = string.Empty;
         public string Arguments { get; set; } = string.Empty;
         public string WorkingDir { get; set; } = string.Empty;
         public bool IsAlreadyExists { get; set; } = false;
         public string SourcePath { get; set; } = string.Empty;
+
+        /// <summary>
+        /// 只有新发现的软件才允许勾选导入；已存在的软件不可重复勾选
+        /// </summary>
+        public bool CanSelect => !IsAlreadyExists;
+
+        /// <summary>
+        /// 悬浮提示文本
+        /// </summary>
+        public string ToolTipText => IsAlreadyExists
+            ? "该软件已存在于快捷列表中，无需重复导入"
+            : (IsSelected ? "已勾选待导入（点击可取消）" : "未勾选（点击可勾选导入）");
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected void OnPropertyChanged(string propName) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propName));
     }
 
     public static class AppScannerService

@@ -202,7 +202,10 @@
                                               Click="CheckBox_Click"
                                               Style="{StaticResource ModernCheckBox}"
                                               HorizontalAlignment="Center"
-                                              IsEnabled="{Binding IsAlreadyExists, Converter={x:Null}}"/>
+                                              VerticalAlignment="Center"
+                                              IsEnabled="{Binding CanSelect}"
+                                              ToolTip="{Binding ToolTipText}"
+                                              ToolTipService.ShowOnDisabled="True"/>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
