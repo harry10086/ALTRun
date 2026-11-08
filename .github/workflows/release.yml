@@ -109,15 +109,6 @@ jobs:
           )
           $lines | Set-Content -Path "release-notes.md" -Encoding utf8
 
-      - name: Clean up Obsolete Releases
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          Write-Host "Cleaning up obsolete releases and tags if present..."
-          gh release delete v2.0.5 -y --cleanup-tag || true
-          gh release delete v2.0.4 -y || true
-
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
