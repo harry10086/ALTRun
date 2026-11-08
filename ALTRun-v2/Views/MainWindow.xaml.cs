@@ -283,6 +283,36 @@ namespace ALTRun.Views
                 itemAutoRun.Click += (s, e) => ToggleAutoRun(itemAutoRun);
                 menu.Items.Add(itemAutoRun);
 
+                var itemCheckUpdate = new MenuItem { Header = "🔄 检查更新..." };
+                itemCheckUpdate.Click += async (s, e) =>
+                {
+                    try
+                    {
+                        var info = await UpdateCheckerService.CheckForUpdatesAsync();
+                        if (info.HasUpdate)
+                        {
+                            string msg = $"🎉 发现新版本！\n\n当前版本: {info.CurrentVersion}\n最新版本: {info.LatestVersion}\n\n是否立即前往 GitHub 查看更新并下载？";
+                            if (MessageBox.Show(msg, "ALTRun 软件更新提示", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+                            {
+                                UpdateCheckerService.OpenUrl(info.ReleaseUrl);
+                            }
+                        }
+                        else
+                        {
+                            string msg = $"ℹ️ ALTRun 当前已是最新版本 ({info.CurrentVersion})\n\nGitHub 开源库: {UpdateCheckerService.RepoUrl}\n\n是否打开 GitHub 仓库项目主页？";
+                            if (MessageBox.Show(msg, "ALTRun 版本与更新", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+                            {
+                                UpdateCheckerService.OpenUrl(UpdateCheckerService.RepoUrl);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"检查更新出错: {ex.Message}", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                };
+                menu.Items.Add(itemCheckUpdate);
+
                 menu.Items.Add(new Separator());
 
                 var itemExit = new MenuItem { Header = "退出 ALTRun" };

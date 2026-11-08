@@ -39,27 +39,52 @@ namespace ALTRun.Services
 
         public void Load()
         {
-            // 1. 如果存在现代 JSON 配置，优先读取
+            // 1. 如果存在现代 JSON 配置，优先读取（支持微小重试，防止开机瞬间文件被杀软或网盘同步锁定）
             if (File.Exists(_jsonConfigPath))
             {
+                for (int attempt = 0; attempt < 3; attempt++)
+                {
+                    try
+                    {
+                        using var fs = new FileStream(_jsonConfigPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                        using var reader = new StreamReader(fs, Encoding.UTF8);
+                        string json = reader.ReadToEnd();
+
+                        if (!string.IsNullOrWhiteSpace(json))
+                        {
+                            var settings = JsonSerializer.Deserialize<AppSettings>(json);
+                            if (settings != null && settings.ShortCuts.Count > 0)
+                            {
+                                if (string.IsNullOrEmpty(settings.Theme))
+                                {
+                                    settings.Theme = settings.DarkMode ? "obsidian" : "pearl";
+                                }
+                                Settings = settings;
+
+                                // 确保系统级现代快捷方式开箱即用，无感修复历史遗留失效配置
+                                EnsureSystemShortcuts(Settings.ShortCuts);
+
+                                RefreshPinyinCache();
+                                Save();
+                                return;
+                            }
+                        }
+                        break;
+                    }
+                    catch (IOException)
+                    {
+                        System.Threading.Thread.Sleep(50);
+                    }
+                    catch { break; }
+                }
+
+                // 关键防护：只要磁盘上已存在配置文件（非空），即使由于某种原因解析异常，也绝对不判定为首次运行
                 try
                 {
-                    string json = File.ReadAllText(_jsonConfigPath, Encoding.UTF8);
-                    var settings = JsonSerializer.Deserialize<AppSettings>(json);
-                    if (settings != null && settings.ShortCuts.Count > 0)
+                    var fileInfo = new FileInfo(_jsonConfigPath);
+                    if (fileInfo.Exists && fileInfo.Length > 0)
                     {
-                        if (string.IsNullOrEmpty(settings.Theme))
-                        {
-                            settings.Theme = settings.DarkMode ? "obsidian" : "pearl";
-                        }
-                        Settings = settings;
-
-                        // 确保系统级现代快捷方式开箱即用，无感修复历史遗留失效配置
-                        EnsureSystemShortcuts(Settings.ShortCuts);
-
-                        RefreshPinyinCache();
-                        Save();
-                        return;
+                        IsFirstRun = false;
                     }
                 }
                 catch { }
@@ -98,7 +123,11 @@ namespace ALTRun.Services
             }
 
             // 3. 首次启动开箱即用：直接加载内置 Win10/11 现代快捷列表
-            IsFirstRun = true;
+            // 如果本地已有配置文件（例如虽然由于某种原因读取失败），决不能重置或标记为首次运行
+            if (!File.Exists(_jsonConfigPath))
+            {
+                IsFirstRun = true;
+            }
             Settings.ShortCuts = GenerateModernDefaultShortcuts();
             RefreshPinyinCache();
             Save();

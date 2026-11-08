@@ -1,4 +1,4 @@
-# ALTRun v2.0 - 现代极速快速启动利器
+﻿# ALTRun v2.0 - 现代极速快速启动利器
 
 <div align="center">
 
@@ -8,7 +8,7 @@
 *极简键盘交互 · 沉浸 Fluent Design · 拼音首字母模糊检索 · 零依赖绿色单文件*
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D4?logo=windows)](https://www.microsoft.com/)
-[![Version](https://img.shields.io/badge/Version-2.0.5-success)](#)
+[![Version](https://img.shields.io/badge/Version-2.0.6-success)](#)
 [![Framework](https://img.shields.io/badge/.NET-8.0%20WPF-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Size](https://img.shields.io/badge/Size-~216KB-brightgreen)](#)
 
@@ -244,6 +244,16 @@ dotnet publish ALTRun-v2/ALTRun.csproj -c Release -r win-x64 --no-self-contained
 ---
 
 ## 📝 版本更新历史 (Changelog)
+
+- **v2.0.6 (2026-11)**:
+  - 🔄 **新增在线更新检测**：
+    - 管理中心工具栏与系统托盘右键菜单均新增「🔄 检查更新」功能；
+    - 当 GitHub Releases 有新版本时弹框提醒并一键直达下载页面；手动检查且当前已是最新时，显示当前版本与开源仓库链接并支持一键访问；
+    - 后台轻量自动检测 GitHub Releases 更新，有新版本时友好弹框提示，开箱体验更省心；
+  - 🛡️ **彻底根除开机偶发弹窗问题**：
+    - 规范化开机自启动机制，开机仅保留注册表启动项并附带 `--silent` 静默标记，彻底清理旧版遗留的 `shell:startup` 启动文件夹快捷方式，防止双重自启竞争；
+    - 单实例检测升级：开机静默模式下若有重叠启动则直接安全退出，绝不发送唤醒事件，杜绝主搜索框误弹到屏幕中央；
+    - 配置文件读取增强：加入共享读取与并发重试保护，并增加防御性校验，只要已有非空配置文件则绝不判定为首次运行，彻底杜绝开机误弹导入向导。
 
 - **v2.0.5 (2026-10)**:
   - 🛠️ **修复已安装软件扫描复选框勾选问题**：修复扫描窗口中复选框 `IsEnabled` 逻辑反向绑定的缺陷，支持手动自由勾选/取消勾选任意新软件，并实现已存在项目的智能禁用与状态悬浮说明；

@@ -21,6 +21,7 @@ namespace ALTRun.Services
             }
 
             // 1. 注册表启动项 (HKCU\Software\Microsoft\Windows\CurrentVersion\Run)
+            // 规范化添加 --silent 参数，确保开机静默常驻托盘，即使被系统多次拉起也不会误唤醒主界面
             try
             {
                 using var key = Registry.CurrentUser.OpenSubKey(RunRegistryKey, true);
@@ -28,7 +29,7 @@ namespace ALTRun.Services
                 {
                     if (enable)
                     {
-                        key.SetValue(AppName, $"\"{exePath}\"");
+                        key.SetValue(AppName, $"\"{exePath}\" --silent");
                     }
                     else
                     {
@@ -38,20 +39,14 @@ namespace ALTRun.Services
             }
             catch { }
 
-            // 2. Windows 用户启动文件夹 (shell:startup) 快捷方式
+            // 2. 清理历史遗留的 Windows 用户启动文件夹 (shell:startup) 快捷方式
+            // 避免注册表与启动文件夹同时存在造成双重自启动冲突
             try
             {
                 string shortcutPath = StartupShortcutPath;
-                if (enable)
+                if (File.Exists(shortcutPath))
                 {
-                    CreateOrUpdateShortcut(shortcutPath, exePath);
-                }
-                else
-                {
-                    if (File.Exists(shortcutPath))
-                    {
-                        File.Delete(shortcutPath);
-                    }
+                    File.Delete(shortcutPath);
                 }
             }
             catch { }
@@ -82,7 +77,6 @@ namespace ALTRun.Services
         {
             try
             {
-                if (File.Exists(StartupShortcutPath)) return true;
                 using var key = Registry.CurrentUser.OpenSubKey(RunRegistryKey, false);
                 return key?.GetValue(AppName) != null;
             }

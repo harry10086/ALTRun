@@ -36,12 +36,12 @@ namespace ALTRun.Views
             try
             {
                 var ver = typeof(ManageWindow).Assembly.GetName().Version;
-                string verStr = ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "v2.0.5";
+                string verStr = ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "v2.0.6";
                 Title = $"ALTRun {verStr} - 快捷方式管理中心";
             }
             catch
             {
-                Title = "ALTRun v2.0.5 - 快捷方式管理中心";
+                Title = "ALTRun v2.0.6 - 快捷方式管理中心";
             }
         }
 
@@ -483,6 +483,60 @@ namespace ALTRun.Views
                 {
                     WpfMessageBox.Show($"导出失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+            }
+        }
+
+        private async void BtnCheckUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = BtnCheckUpdate;
+            string originalContent = btn.Content?.ToString() ?? "🔄 检查更新";
+            btn.IsEnabled = false;
+            btn.Content = "⏳ 检查中...";
+
+            try
+            {
+                var info = await UpdateCheckerService.CheckForUpdatesAsync();
+
+                if (info.HasUpdate)
+                {
+                    string msg = $"🎉 发现新版本！\n\n" +
+                                 $"当前版本: {info.CurrentVersion}\n" +
+                                 $"最新版本: {info.LatestVersion}\n\n" +
+                                 $"是否立即前往 GitHub 页面查看更新日志并下载安装？";
+
+                    var result = WpfMessageBox.Show(this, msg, "ALTRun 软件更新提示", MessageBoxButton.YesNo, MessageBoxImage.Information);
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        UpdateCheckerService.OpenUrl(info.ReleaseUrl);
+                    }
+                }
+                else
+                {
+                    string statusDesc = string.IsNullOrEmpty(info.ErrorMessage)
+                        ? "您当前使用的是最新版本，暂无可用更新。"
+                        : $"检查更新出现提示: {info.ErrorMessage}";
+
+                    string msg = $"ℹ️ ALTRun 版本信息\n\n" +
+                                 $"当前运行版本: {info.CurrentVersion}\n" +
+                                 $"GitHub 开源库: {UpdateCheckerService.RepoUrl}\n\n" +
+                                 $"{statusDesc}\n\n" +
+                                 $"是否打开 GitHub 仓库项目主页？";
+
+                    var result = WpfMessageBox.Show(this, msg, "ALTRun 版本与更新", MessageBoxButton.YesNo, MessageBoxImage.Information);
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        UpdateCheckerService.OpenUrl(UpdateCheckerService.RepoUrl);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                WpfMessageBox.Show(this, $"检查更新出错: {ex.Message}", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            finally
+            {
+                btn.IsEnabled = true;
+                btn.Content = originalContent;
             }
         }
 

@@ -30,20 +30,40 @@ namespace ALTRun
                 args.Handled = true;
             };
 
+            // 检测是否为开机静默启动参数 (--silent 或 --autorun)
+            bool isSilentStartup = false;
+            if (e.Args != null && e.Args.Length > 0)
+            {
+                foreach (var arg in e.Args)
+                {
+                    if (string.Equals(arg, "--silent", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(arg, "--autorun", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(arg, "-silent", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(arg, "/silent", StringComparison.OrdinalIgnoreCase))
+                    {
+                        isSilentStartup = true;
+                        break;
+                    }
+                }
+            }
+
             // 单实例检测与重复运行唤醒支持
             _mutex = new Mutex(true, MutexName, out bool createdNew);
             if (!createdNew)
             {
-                // 如果已有实例在后台运行，通过命名事件唤醒现有实例的主搜索框，然后安全退出当前重复进程
-                try
+                // 仅当用户手动显式再次运行程序（非开机静默自启动模式）时，才触发命名事件唤醒现有实例的主搜索框
+                if (!isSilentStartup)
                 {
-                    if (EventWaitHandle.TryOpenExisting(WakeupEventName, out var existingEvent))
+                    try
                     {
-                        existingEvent.Set();
-                        existingEvent.Dispose();
+                        if (EventWaitHandle.TryOpenExisting(WakeupEventName, out var existingEvent))
+                        {
+                            existingEvent.Set();
+                            existingEvent.Dispose();
+                        }
                     }
+                    catch { }
                 }
-                catch { }
 
                 // 当前实例并未拥有互斥体所有权，绝不调用 ReleaseMutex，直接释放句柄并退出
                 _mutex.Dispose();
@@ -82,8 +102,8 @@ namespace ALTRun
             MainWindow = mainWindow;
             mainWindow.InitializeBackgroundTray();
 
-            // 首次运行向导（如果是全新运行无配置，引导用户扫描已安装软件）
-            if (Config.IsFirstRun)
+            // 首次运行向导（如果是全新运行无配置，引导用户扫描已安装软件；但若为开机静默启动，绝不弹窗打扰用户）
+            if (Config.IsFirstRun && !isSilentStartup)
             {
                 var wizard = new WelcomeWizardWindow();
                 wizard.ShowDialog();
@@ -91,6 +111,37 @@ namespace ALTRun
 
             // 启动轻量后台空闲内存维护定时器（托盘后台休眠时维持极小物理内存常驻）
             StartIdleMemoryMaintenance();
+
+            // 后台静默检测 GitHub Releases 更新（延迟 10 秒启动，完全不影响开机极速响应）
+            CheckUpdateInBackground();
+        }
+
+        private static void CheckUpdateInBackground()
+        {
+            Task.Run(async () =>
+            {
+                await Task.Delay(10000);
+                try
+                {
+                    var info = await UpdateCheckerService.CheckForUpdatesAsync();
+                    if (info.HasUpdate)
+                    {
+                        Current?.Dispatcher?.Invoke(() =>
+                        {
+                            string msg = $"🎉 ALTRun 检测到新版本发布！\n\n" +
+                                         $"当前版本: {info.CurrentVersion}\n" +
+                                         $"最新版本: {info.LatestVersion}\n\n" +
+                                         $"是否立即前往 GitHub 查看更新日志并下载安装？";
+
+                            if (System.Windows.MessageBox.Show(msg, "ALTRun 发现新版本", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+                            {
+                                UpdateCheckerService.OpenUrl(info.ReleaseUrl);
+                            }
+                        });
+                    }
+                }
+                catch { }
+            });
         }
 
         private void StartIdleMemoryMaintenance()
