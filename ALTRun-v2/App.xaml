@@ -26,8 +26,8 @@
         <SolidColorBrush x:Key="BadgeBgBrush" Color="{StaticResource BadgeBgColor}"/>
         <SolidColorBrush x:Key="HighlightBgBrush" Color="{StaticResource HighlightBgColor}"/>
 
-        <!-- 现代字体规范 -->
-        <FontFamily x:Key="MainFont">Segoe UI Variable Display, Microsoft YaHei UI, sans-serif</FontFamily>
-        <FontFamily x:Key="CodeFont">Cascadia Code, Consolas, monospace</FontFamily>
+        <!-- 现代通用字体规范（优先使用系统原生保证存在的经典稳定字体，彻底避免 DirectWrite variable font 文件缺失或缓存损坏导致的闪退） -->
+        <FontFamily x:Key="MainFont">Segoe UI, Microsoft YaHei UI, sans-serif</FontFamily>
+        <FontFamily x:Key="CodeFont">Consolas, Cascadia Code, monospace</FontFamily>
     </Application.Resources>
 </Application>

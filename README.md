@@ -1,4 +1,4 @@
-﻿# ALTRun v2.0 - 现代极速快速启动利器
+# ALTRun v2.0 - 现代极速快速启动利器
 
 <div align="center">
 
@@ -8,7 +8,7 @@
 *极简键盘交互 · 沉浸 Fluent Design · 拼音首字母模糊检索 · 零依赖绿色单文件*
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D4?logo=windows)](https://www.microsoft.com/)
-[![Version](https://img.shields.io/badge/Version-2.0.6-success)](#)
+[![Version](https://img.shields.io/badge/Version-2.0.7-success)](#)
 [![Framework](https://img.shields.io/badge/.NET-8.0%20WPF-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Size](https://img.shields.io/badge/Size-~216KB-brightgreen)](#)
 
@@ -244,6 +244,12 @@ dotnet publish ALTRun-v2/ALTRun.csproj -c Release -r win-x64 --no-self-contained
 ---
 
 ## 📝 版本更新历史 (Changelog)
+
+- **v2.0.7 (2026-11)**:
+  - 🛡️ **彻底解决部分系统下输入特定字母弹窗崩溃问题**：
+    - 统一将主字体替换为高兼容的标准系统字体族（`Segoe UI, Microsoft YaHei UI, sans-serif`），将代码/快捷词字体优先级调整为原生内置的 `Consolas, Cascadia Code, monospace`；
+    - 彻底规避部分精简版 Win11 或未预装 Windows Terminal 的电脑上，因 DirectWrite 在检索 `Segoe UI Variable Display` 轴分量或缺少 `Cascadia Code` 时抛出 `Unable to find the specified file (GetDesignGlyphMetrics)` 底层异常的缺陷；
+    - 在全局未捕获异常调度器（DispatcherUnhandledException）中加入针对底层字形度量丢失的容错保护，保障极端字体损坏环境下的极佳鲁棒性与平稳运行。
 
 - **v2.0.6 (2026-11)**:
   - 🔄 **新增在线更新检测**：

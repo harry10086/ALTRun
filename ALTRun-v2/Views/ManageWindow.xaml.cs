@@ -36,12 +36,12 @@ namespace ALTRun.Views
             try
             {
                 var ver = typeof(ManageWindow).Assembly.GetName().Version;
-                string verStr = ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "v2.0.6";
+                string verStr = ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "v2.0.7";
                 Title = $"ALTRun {verStr} - 快捷方式管理中心";
             }
             catch
             {
-                Title = "ALTRun v2.0.6 - 快捷方式管理中心";
+                Title = "ALTRun v2.0.7 - 快捷方式管理中心";
             }
         }
 

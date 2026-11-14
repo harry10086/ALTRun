@@ -29,7 +29,7 @@ namespace ALTRun.Services
             get
             {
                 var ver = typeof(UpdateCheckerService).Assembly.GetName().Version;
-                return ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "v2.0.6";
+                return ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "v2.0.7";
             }
         }
 

@@ -26,7 +26,17 @@ namespace ALTRun
 
             DispatcherUnhandledException += (s, args) =>
             {
-                System.Windows.MessageBox.Show($"程序发生异常: {args.Exception.Message}\n{args.Exception.StackTrace}", "ALTRun 提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                // 针对 DirectWrite 字体度量或文件丢失偶发异常做静默容错保护
+                if (args.Exception != null &&
+                    (args.Exception.Message.Contains("Unable to find the specified file") ||
+                     args.Exception.StackTrace?.Contains("GetDesignGlyphMetrics") == true ||
+                     args.Exception.StackTrace?.Contains("GlyphTypeface") == true))
+                {
+                    args.Handled = true;
+                    return;
+                }
+
+                System.Windows.MessageBox.Show($"程序发生异常: {args.Exception?.Message}\n{args.Exception?.StackTrace}", "ALTRun 提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 args.Handled = true;
             };
 

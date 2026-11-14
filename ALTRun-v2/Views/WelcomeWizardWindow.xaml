@@ -10,7 +10,7 @@
         AllowsTransparency="True"
         Background="Transparent"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
-        FontFamily="Segoe UI Variable Display, Microsoft YaHei UI, sans-serif">
+        FontFamily="Segoe UI, Microsoft YaHei UI, sans-serif">
 
     <Border Background="#1C1C22"
             BorderBrush="#40FFFFFF"

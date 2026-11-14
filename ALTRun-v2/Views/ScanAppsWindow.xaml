@@ -10,7 +10,7 @@
         Background="{DynamicResource WindowBg}"
         Foreground="{DynamicResource TextPrimary}"
         FontSize="15"
-        FontFamily="Segoe UI Variable Display, Microsoft YaHei UI, sans-serif">
+        FontFamily="Segoe UI, Microsoft YaHei UI, sans-serif">
 
     <Window.Resources>
         <SolidColorBrush x:Key="WindowBg" Color="#18181C"/>
@@ -217,7 +217,7 @@
                                     <TextBox Text="{Binding ShortCut, UpdateSourceTrigger=PropertyChanged}"
                                              FontSize="13"
                                              FontWeight="Bold"
-                                             FontFamily="Cascadia Code, Consolas, monospace"
+                                             FontFamily="Consolas, Cascadia Code, monospace"
                                              Foreground="{DynamicResource AccentBrush}"
                                              Background="{DynamicResource InputBg}"
                                              BorderBrush="{DynamicResource BorderBrush}"

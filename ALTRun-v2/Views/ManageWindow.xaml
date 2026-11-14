@@ -10,7 +10,7 @@
         Background="{DynamicResource WindowBg}"
         Foreground="{DynamicResource TextPrimary}"
         FontSize="16"
-        FontFamily="Segoe UI Variable Display, Microsoft YaHei UI, sans-serif">
+        FontFamily="Segoe UI, Microsoft YaHei UI, sans-serif">
 
     <Window.Resources>
         <!-- 基础色彩画刷初始值 (默认深色模式) -->
@@ -232,7 +232,7 @@
                             <Setter Property="Padding" Value="16,0"/>
                             <Setter Property="FontWeight" Value="Bold"/>
                             <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
-                            <Setter Property="FontFamily" Value="Cascadia Code, Consolas, monospace"/>
+                            <Setter Property="FontFamily" Value="Consolas, Cascadia Code, monospace"/>
                             <Setter Property="FontSize" Value="16"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
@@ -258,7 +258,7 @@
                             <Setter Property="VerticalAlignment" Value="Center"/>
                             <Setter Property="Padding" Value="16,0"/>
                             <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
-                            <Setter Property="FontFamily" Value="Cascadia Code, Consolas, monospace"/>
+                            <Setter Property="FontFamily" Value="Consolas, Cascadia Code, monospace"/>
                             <Setter Property="FontSize" Value="15"/>
                         </Style>
                     </DataGridTextColumn.ElementStyle>

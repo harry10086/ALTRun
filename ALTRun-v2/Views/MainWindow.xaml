@@ -12,7 +12,7 @@
         Background="Transparent"
         Topmost="True"
         ShowInTaskbar="False"
-        FontFamily="Segoe UI Variable Display, Microsoft YaHei UI, sans-serif"
+        FontFamily="Segoe UI, Microsoft YaHei UI, sans-serif"
         PreviewKeyDown="Window_PreviewKeyDown"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         Deactivated="Window_Deactivated"
@@ -182,7 +182,7 @@
                                 <TextBlock Text="{Binding DisplayIndex}"
                                            FontSize="13"
                                            FontWeight="Bold"
-                                           FontFamily="Cascadia Code, Consolas, monospace"
+                                           FontFamily="Consolas, Cascadia Code, monospace"
                                            Foreground="{DynamicResource TextMutedBrush}"
                                            HorizontalAlignment="Center"
                                            VerticalAlignment="Center"/>
@@ -200,7 +200,7 @@
                                 <TextBlock Text="{Binding ShortCut}"
                                            FontSize="14"
                                            FontWeight="Bold"
-                                           FontFamily="Cascadia Code, Consolas, monospace"
+                                           FontFamily="Consolas, Cascadia Code, monospace"
                                            Foreground="{DynamicResource AccentBrush}"/>
                             </Border>
 
@@ -213,7 +213,7 @@
                                            TextTrimming="CharacterEllipsis"/>
                                 <TextBlock Text="{Binding CommandLine}"
                                            FontSize="12"
-                                           FontFamily="Cascadia Code, Consolas, monospace"
+                                           FontFamily="Consolas, Cascadia Code, monospace"
                                            Foreground="{DynamicResource TextMutedBrush}"
                                            TextTrimming="CharacterEllipsis"
                                            Margin="0,2,0,0"/>
