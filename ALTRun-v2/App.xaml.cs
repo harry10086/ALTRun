@@ -181,18 +181,26 @@ namespace ALTRun
             _idleTimer.Start();
         }
 
-        public static void OpenManageWindow()
+        public static void OpenManageWindow(Models.ShortCutItem? itemToEdit = null, bool addNew = false)
         {
             foreach (Window win in Current.Windows)
             {
                 if (win is ManageWindow manageWin)
                 {
+                    if (addNew)
+                    {
+                        manageWin.BtnAdd_Click_External();
+                    }
+                    else if (itemToEdit != null)
+                    {
+                        manageWin.SelectAndFocusItem(itemToEdit);
+                    }
                     manageWin.Activate();
                     return;
                 }
             }
 
-            var newManageWin = new ManageWindow();
+            var newManageWin = new ManageWindow(itemToEdit, addNew);
             newManageWin.Show();
         }
 

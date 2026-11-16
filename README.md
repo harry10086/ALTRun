@@ -8,7 +8,7 @@
 *极简键盘交互 · 沉浸 Fluent Design · 拼音首字母模糊检索 · 零依赖绿色单文件*
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D4?logo=windows)](https://www.microsoft.com/)
-[![Version](https://img.shields.io/badge/Version-2.0.7-success)](#)
+[![Version](https://img.shields.io/badge/Version-2.0.8-success)](#)
 [![Framework](https://img.shields.io/badge/.NET-8.0%20WPF-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Size](https://img.shields.io/badge/Size-~216KB-brightgreen)](#)
 
@@ -244,6 +244,21 @@ dotnet publish ALTRun-v2/ALTRun.csproj -c Release -r win-x64 --no-self-contained
 ---
 
 ## 📝 版本更新历史 (Changelog)
+
+- **v2.0.8 (2026-11)**:
+  - 🎨 **全界面 Fluent 现代圆角视觉重构**：
+    - **统一圆角规范**：彻底告别突兀的直角方框。外层菜单与卡片容器统一采用 8px 圆角（托盘主菜单、外观弹出菜单、二级主题风格子菜单、数据表格卡片与设置卡片），内部各交互项与控件统一采用 6px 圆角（菜单悬停项、按钮、输入框、下拉框），复选框采用 4px 微圆角；
+    - **鼠标滑动圆角高亮**：
+      - 呼出主窗口：顶栏「外观主题」与「快捷方式管理（齿轮）」按钮采用统一 32×32 黄金尺寸与 6px 圆角悬停背景，并消除 Windows 原生点状虚线焦点框；主搜索框保持纯净沉浸无框体验；
+      - 托盘右键菜单与二级子菜单：重构全局 MenuItem 模板，鼠标滑动时高亮选中条统一呈现 6px 平滑圆角与内缩间距；
+      - 设置管理中心：输入框（TextBox）、下拉框（ComboBox）、选择框整行（CheckBox）与按钮组（Button）全面支持滑动平滑圆角高亮与呼吸过渡；
+    - **托盘菜单与子菜单严格纵向对齐**：
+      - 规范 22px 图标与勾选列宽，彻底解决子菜单文字参差不齐的问题；
+      - 二级主题风格子菜单采用原生矢量彩色圆点，各主题彩色标点、名称与说明在同一垂直基准线上整齐划一，已选主题具备清晰的勾选对齐反馈；
+    - **主题即时同步注入**：主题画刷实时同步至全局应用程序资源（Application Resources），托盘菜单呼出时即刻契合当前配置的深浅主题风格；
+  - 🖱️ **表格外框与操作细节提升**：
+    - 管理中心数据表格（ShortcutGrid）包覆 8px 圆角卡片，消除边缘直角外突感；
+    - 补全工具栏与底部按钮的鼠标悬停光晕与点击按压状态反馈。
 
 - **v2.0.7 (2026-11)**:
   - 🛡️ **彻底解决部分系统下输入特定字母弹窗崩溃问题**：

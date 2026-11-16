@@ -33,7 +33,7 @@
         <SolidColorBrush x:Key="AccentBrush" Color="#38BDF8"/>
         <SolidColorBrush x:Key="BadgeBg" Color="#3038BDF8"/>
 
-        <!-- 现代通用按钮样式 -->
+        <!-- 现代通用按钮样式 (统一 6px 圆角 + 悬停微高亮) -->
         <Style x:Key="ModernBtn" TargetType="Button">
             <Setter Property="Background" Value="{DynamicResource BtnBg}"/>
             <Setter Property="Foreground" Value="{DynamicResource BtnFg}"/>
@@ -44,16 +44,31 @@
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
+                        <Border x:Name="btnBorder"
+                                Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
                                 CornerRadius="6"
-                                Padding="{TemplateBinding Padding}">
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="btnBorder" Property="Background" Value="{DynamicResource HoverBgBrush}"/>
+                                <Setter TargetName="btnBorder" Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="btnBorder" Property="Background" Value="{DynamicResource HighlightBgBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="btnBorder" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -65,6 +80,33 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
             <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="btnBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="btnBorder" Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+                                <Setter TargetName="btnBorder" Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="btnBorder" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="btnBorder" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
@@ -99,13 +141,88 @@
 
             <!-- 操作按钮组 -->
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Content="+ 新建项" Style="{StaticResource AccentBtn}" Click="BtnAdd_Click" ToolTip="新增一个快捷项目"/>
-                <Button Content="⚡ 扫描已安装软件" Style="{StaticResource ModernBtn}" Click="BtnScanApps_Click" ToolTip="自动检索本机开始菜单与桌面软件，智能过滤并一键批量导入"/>
-                <Button Content="删除选中" Style="{StaticResource ModernBtn}" Click="BtnDelete_Click" ToolTip="删除表格中当前选中的快捷方式"/>
-                <Button Content="📥 导入列表" Style="{StaticResource ModernBtn}" Click="BtnImport_Click" ToolTip="支持导入 ShortCutList.txt / FavoriteList.txt / INI 等所有格式文件"/>
-                <Button Content="📤 导出列表" Style="{StaticResource ModernBtn}" Click="BtnExport_Click" ToolTip="导出为标准 ShortCutList.txt"/>
-                <Button x:Name="BtnToggleTheme" Content="🎨 快速换主题" Style="{StaticResource ModernBtn}" Click="BtnToggleTheme_Click" ToolTip="在预置的高质感主题间快速循环切换"/>
-                <Button x:Name="BtnCheckUpdate" Content="🔄 检查更新" Style="{StaticResource ModernBtn}" Click="BtnCheckUpdate_Click" ToolTip="检查 GitHub 最新版本与发布动态"/>
+                <Button Style="{StaticResource AccentBtn}" Click="BtnAdd_Click" ToolTip="新增一个快捷项目">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
+                              Fill="{DynamicResource AccentTextBrush}"
+                              Width="14" Height="14"
+                              Stretch="Uniform"
+                              VerticalAlignment="Center"
+                              Margin="0,0,6,0"/>
+                        <TextBlock Text="新建项" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource ModernBtn}" Click="BtnScanApps_Click" ToolTip="自动检索本机开始菜单与桌面软件，智能过滤并一键批量导入">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"
+                              Fill="{DynamicResource BtnFg}"
+                              Width="14" Height="14"
+                              Stretch="Uniform"
+                              VerticalAlignment="Center"
+                              Margin="0,0,6,0"/>
+                        <TextBlock Text="扫描已安装软件" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource ModernBtn}" Click="BtnDelete_Click" ToolTip="删除表格中当前选中的快捷方式">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19M8,9H16V19H8V9M9,11V17H11V11H9M13,11V17H15V11H13Z"
+                              Fill="{DynamicResource BtnFg}"
+                              Width="14" Height="14"
+                              Stretch="Uniform"
+                              VerticalAlignment="Center"
+                              Margin="0,0,6,0"/>
+                        <TextBlock Text="删除选中" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource ModernBtn}" Click="BtnImport_Click" ToolTip="支持导入 ShortCutList.txt / FavoriteList.txt / INI 等所有格式文件">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="M11,4H4A2,2 0 0,0 2,6V20A2,2 0 0,0 4,22H18A2,2 0 0,0 20,20V13H18V20H4V6H11V4M19.5,6L18.09,7.41L15,4.33V14H13V4.33L9.91,7.41L8.5,6L14,0.5L19.5,6Z"
+                              Fill="{DynamicResource BtnFg}"
+                              Width="14" Height="14"
+                              Stretch="Uniform"
+                              VerticalAlignment="Center"
+                              RenderTransformOrigin="0.5,0.5"
+                              Margin="0,0,6,0">
+                            <Path.RenderTransform>
+                                <ScaleTransform ScaleY="-1"/>
+                            </Path.RenderTransform>
+                        </Path>
+                        <TextBlock Text="导入列表" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource ModernBtn}" Click="BtnExport_Click" ToolTip="导出为标准 ShortCutList.txt">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="M11,4H4A2,2 0 0,0 2,6V20A2,2 0 0,0 4,22H18A2,2 0 0,0 20,20V13H18V20H4V6H11V4M19.5,6L18.09,7.41L15,4.33V14H13V4.33L9.91,7.41L8.5,6L14,0.5L19.5,6Z"
+                              Fill="{DynamicResource BtnFg}"
+                              Width="14" Height="14"
+                              Stretch="Uniform"
+                              VerticalAlignment="Center"
+                              Margin="0,0,6,0"/>
+                        <TextBlock Text="导出列表" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="BtnToggleTheme" Style="{StaticResource ModernBtn}" Click="BtnToggleTheme_Click" ToolTip="在预置的高质感主题间快速循环切换">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A3.5,3.5 0 0,0 15.5,18.5C15.5,18.16 15.38,17.84 15.17,17.58C14.96,17.33 14.83,17 14.83,16.67A1.67,1.67 0 0,1 16.5,15H18A4,4 0 0,0 22,11C22,6.03 17.5,2 12,2M12,4C16.41,4 20,7.13 20,11A2,2 0 0,1 18,13H16.5A3.67,3.67 0 0,0 12.83,16.67C12.83,17.39 13.15,18.05 13.66,18.53C13.84,18.78 13.5,19.34 13.5,18.5A1.5,1.5 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M6.5,10A1.5,1.5 0 0,0 5,11.5A1.5,1.5 0 0,0 6.5,13A1.5,1.5 0 0,0 8,11.5A1.5,1.5 0 0,0 6.5,10M9.5,6A1.5,1.5 0 0,0 8,7.5A1.5,1.5 0 0,0 9.5,9A1.5,1.5 0 0,0 11,7.5A1.5,1.5 0 0,0 9.5,6M14.5,6A1.5,1.5 0 0,0 13,7.5A1.5,1.5 0 0,0 14.5,9A1.5,1.5 0 0,0 16,7.5A1.5,1.5 0 0,0 14.5,6M17.5,10A1.5,1.5 0 0,0 16,11.5A1.5,1.5 0 0,0 17.5,13A1.5,1.5 0 0,0 19,11.5A1.5,1.5 0 0,0 17.5,10Z"
+                              Fill="{DynamicResource BtnFg}"
+                              Width="14" Height="14"
+                              Stretch="Uniform"
+                              VerticalAlignment="Center"
+                              Margin="0,0,6,0"/>
+                        <TextBlock Text="快速换主题" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="BtnCheckUpdate" Style="{StaticResource ModernBtn}" Click="BtnCheckUpdate_Click" ToolTip="检查 GitHub 最新版本与发布动态">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Path Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"
+                              Fill="{DynamicResource BtnFg}"
+                              Width="13" Height="13"
+                              Stretch="Uniform"
+                              VerticalAlignment="Center"
+                              Margin="0,0,6,0"/>
+                        <TextBlock Text="检查更新" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Grid>
 
@@ -141,28 +258,46 @@
                 <!-- 右侧：外观主题风格下拉框 -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="🎨 主题风格:" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                    <ComboBox x:Name="CmbThemes" Width="190" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" SelectionChanged="CmbThemes_SelectionChanged" ToolTip="切换主界面与管理器外观配色风格"/>
+                    <ComboBox x:Name="CmbThemes" Width="205" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" SelectionChanged="CmbThemes_SelectionChanged" ToolTip="切换主界面与管理器外观配色风格">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border Width="13" Height="13" CornerRadius="6.5" Margin="0,0,8,0" VerticalAlignment="Center" BorderThickness="1" BorderBrush="#40FFFFFF">
+                                        <Border.Background>
+                                            <SolidColorBrush Color="{Binding AccentColor}"/>
+                                        </Border.Background>
+                                    </Border>
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock Text="{Binding Description, StringFormat='({0})'}" FontSize="11.5" Opacity="0.65" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- 3. 高对比度、防发蓝、清晰大字号表格 -->
-        <DataGrid x:Name="ShortcutGrid"
-                  Grid.Row="2"
-                  AutoGenerateColumns="False"
-                  CanUserAddRows="False"
-                  Background="{DynamicResource CardBg}"
-                  BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1"
-                  Foreground="{DynamicResource TextPrimary}"
-                  FontSize="16"
-                  RowHeight="48"
-                  RowBackground="{DynamicResource RowBg}"
-                  AlternatingRowBackground="{DynamicResource RowAltBg}"
-                  GridLinesVisibility="Horizontal"
-                  HorizontalGridLinesBrush="{DynamicResource GridLine}"
-                  SelectionMode="Single"
-                  SelectionChanged="ShortcutGrid_SelectionChanged">
+        <!-- 3. 高对比度、防发蓝、清晰大字号表格卡片 (统一 8px 外观圆角) -->
+        <Border Grid.Row="2"
+                CornerRadius="8"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                Background="{DynamicResource CardBg}"
+                ClipToBounds="True">
+            <DataGrid x:Name="ShortcutGrid"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      Background="Transparent"
+                      BorderThickness="0"
+                      Foreground="{DynamicResource TextPrimary}"
+                      FontSize="16"
+                      RowHeight="48"
+                      RowBackground="{DynamicResource RowBg}"
+                      AlternatingRowBackground="{DynamicResource RowAltBg}"
+                      GridLinesVisibility="Horizontal"
+                      HorizontalGridLinesBrush="{DynamicResource GridLine}"
+                      SelectionMode="Single"
+                      SelectionChanged="ShortcutGrid_SelectionChanged">
 
             <!-- 自定义单元格样式: 避免原生蓝色覆盖 -->
             <DataGrid.CellStyle>
@@ -277,6 +412,7 @@
                 </DataGridTextColumn>
             </DataGrid.Columns>
         </DataGrid>
+        </Border>
 
         <!-- 4. 底部快捷项编辑表单 (支持一键选择文件 / 目录) -->
         <Border Grid.Row="3"

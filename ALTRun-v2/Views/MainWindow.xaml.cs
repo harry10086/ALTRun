@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -82,7 +83,15 @@ namespace ALTRun.Views
             var hwnd = helper.Handle;
             if (hwnd == IntPtr.Zero) return;
 
-            // 1. 初始化系统托盘服务
+            // 1. 应用 DWM 原生圆角与沉浸式暗色模式特性
+            try
+            {
+                var currentTheme = ThemeManager.GetTheme(App.Config.Settings.Theme, App.Config.Settings.DarkMode);
+                DwmHelper.ApplyModernWindowStyles(this, currentTheme.IsDark);
+            }
+            catch { }
+
+            // 2. 初始化系统托盘服务
             try
             {
                 string hotKeyStr = App.Config.Settings.HotKey;
@@ -223,6 +232,58 @@ namespace ALTRun.Views
             catch { }
         }
 
+        private MenuItem CreateThemeMenuItem(ThemeDefinition th, string currentThemeId, double fontSize = 13.5)
+        {
+            var itemTh = new MenuItem
+            {
+                IsChecked = th.Id.Equals(currentThemeId, StringComparison.OrdinalIgnoreCase),
+                FontSize = fontSize
+            };
+
+            var panel = new StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            // 原生矢量真实彩色圆点 (杜绝黑白 Emoji 与字体排版错位)
+            var circle = new System.Windows.Shapes.Ellipse
+            {
+                Width = 11,
+                Height = 11,
+                Fill = new SolidColorBrush(th.AccentColor),
+                Stroke = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0x88, 0x88, 0x88)),
+                StrokeThickness = 1,
+                Margin = new Thickness(0, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var tbName = new TextBlock
+            {
+                Text = th.Name,
+                FontWeight = FontWeights.Medium,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 0)
+            };
+            tbName.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
+
+            var tbDesc = new TextBlock
+            {
+                Text = $"({th.Description})",
+                FontSize = fontSize - 1.5,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            tbDesc.SetResourceReference(TextBlock.ForegroundProperty, "TextMutedBrush");
+
+            panel.Children.Add(circle);
+            panel.Children.Add(tbName);
+            panel.Children.Add(tbDesc);
+
+            itemTh.Header = panel;
+            itemTh.Click += (s, ev) => SetTheme(th.Id);
+            return itemTh;
+        }
+
         private void ShowTrayContextMenu()
         {
             Dispatcher.Invoke(() =>
@@ -237,7 +298,7 @@ namespace ALTRun.Views
                 itemManage.Click += (s, e) => App.OpenManageWindow();
                 menu.Items.Add(itemManage);
 
-                var itemScan = new MenuItem { Header = "⚡ 扫描已安装软件..." };
+                var itemScan = new MenuItem { Header = "扫描已安装软件..." };
                 itemScan.Click += (s, e) =>
                 {
                     var scanWin = new ScanAppsWindow();
@@ -247,35 +308,23 @@ namespace ALTRun.Views
 
                 menu.Items.Add(new Separator());
 
-                var themeMenu = new MenuItem { Header = "🎨 外观主题风格" };
+                var themeMenu = new MenuItem { Header = "外观主题风格" };
                 string currentThemeId = App.Config.Settings.Theme;
 
-                var darkHeader = new MenuItem { Header = "── 🌙 暗色系列 ──", IsEnabled = false };
+                var darkHeader = new MenuItem { Header = "── 🌙 暗色系列 ──", IsEnabled = false, FontSize = 12 };
                 themeMenu.Items.Add(darkHeader);
                 foreach (var th in ThemeManager.Themes.Where(t => t.IsDark))
                 {
-                    var itemTh = new MenuItem
-                    {
-                        Header = $"{th.Icon} {th.Name}  ({th.Description})",
-                        IsChecked = th.Id.Equals(currentThemeId, StringComparison.OrdinalIgnoreCase)
-                    };
-                    itemTh.Click += (s, e) => SetTheme(th.Id);
-                    themeMenu.Items.Add(itemTh);
+                    themeMenu.Items.Add(CreateThemeMenuItem(th, currentThemeId, 13.5));
                 }
 
                 themeMenu.Items.Add(new Separator());
 
-                var lightHeader = new MenuItem { Header = "── ☀️ 浅色系列 ──", IsEnabled = false };
+                var lightHeader = new MenuItem { Header = "── ☀️ 浅色系列 ──", IsEnabled = false, FontSize = 12 };
                 themeMenu.Items.Add(lightHeader);
                 foreach (var th in ThemeManager.Themes.Where(t => !t.IsDark))
                 {
-                    var itemTh = new MenuItem
-                    {
-                        Header = $"{th.Icon} {th.Name}  ({th.Description})",
-                        IsChecked = th.Id.Equals(currentThemeId, StringComparison.OrdinalIgnoreCase)
-                    };
-                    itemTh.Click += (s, e) => SetTheme(th.Id);
-                    themeMenu.Items.Add(itemTh);
+                    themeMenu.Items.Add(CreateThemeMenuItem(th, currentThemeId, 13.5));
                 }
                 menu.Items.Add(themeMenu);
 
@@ -283,7 +332,7 @@ namespace ALTRun.Views
                 itemAutoRun.Click += (s, e) => ToggleAutoRun(itemAutoRun);
                 menu.Items.Add(itemAutoRun);
 
-                var itemCheckUpdate = new MenuItem { Header = "🔄 检查更新..." };
+                var itemCheckUpdate = new MenuItem { Header = "检查更新..." };
                 itemCheckUpdate.Click += async (s, e) =>
                 {
                     try
@@ -548,6 +597,16 @@ namespace ALTRun.Views
                 return;
             }
 
+            if (e.Key == Key.D && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                if (ResultListBox.SelectedItem is ShortCutItem selected)
+                {
+                    OpenItemDirectory(selected);
+                    e.Handled = true;
+                    return;
+                }
+            }
+
             if (e.Key == Key.Tab)
             {
                 if (ResultListBox.SelectedItem is ShortCutItem selected)
@@ -740,6 +799,238 @@ namespace ALTRun.Views
             return null;
         }
 
+        private void ResultListBox_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (e.OriginalSource is DependencyObject dep)
+            {
+                if (FindVisualParent<System.Windows.Controls.Primitives.ScrollBar>(dep) != null) return;
+
+                var item = FindVisualParent<ListBoxItem>(dep);
+                if (item != null && item.DataContext is ShortCutItem shortcut)
+                {
+                    ResultListBox.SelectedItem = shortcut;
+                    ShowItemContextMenu(shortcut, item);
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private void ShowItemContextMenu(ShortCutItem item, FrameworkElement targetElement)
+        {
+            var menu = new ContextMenu();
+            if (TryFindResource("ModernContextMenu") is Style menuStyle)
+            {
+                menu.Style = menuStyle;
+            }
+
+            var menuItemStyle = TryFindResource("ModernMenuItem") as Style;
+
+            // 辅助构建矢量 Path 图标
+            UIElement CreateVectorIcon(string pathData, double size = 12.5)
+            {
+                var path = new System.Windows.Shapes.Path
+                {
+                    Data = Geometry.Parse(pathData),
+                    Fill = (System.Windows.Media.Brush)FindResource("AccentBrush"),
+                    Width = size,
+                    Height = size,
+                    Stretch = Stretch.Uniform,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center
+                };
+                return new Border
+                {
+                    Width = 20,
+                    Height = 20,
+                    CornerRadius = new CornerRadius(4),
+                    Background = (System.Windows.Media.Brush)FindResource("BadgeBgBrush"),
+                    Child = path
+                };
+            }
+
+            // 1. 添加新条目 (现代加号图标)
+            var miAdd = new MenuItem
+            {
+                Header = "添加新条目",
+                Icon = CreateVectorIcon("M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z", 12),
+                Style = menuItemStyle
+            };
+            miAdd.Click += (s, ev) =>
+            {
+                App.OpenManageWindow(null, addNew: true);
+                HideWindow();
+            };
+            menu.Items.Add(miAdd);
+
+            // 2. 编辑本条目 (现代铅笔/编辑图标)
+            var miEdit = new MenuItem
+            {
+                Header = "编辑本条目",
+                Icon = CreateVectorIcon("M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z", 12),
+                Style = menuItemStyle
+            };
+            miEdit.Click += (s, ev) =>
+            {
+                App.OpenManageWindow(item, addNew: false);
+                HideWindow();
+            };
+            menu.Items.Add(miEdit);
+
+            // 3. 打开目标程序目录 (现代文件夹图标)
+            var miOpenDir = new MenuItem
+            {
+                Header = "打开目标程序目录",
+                Icon = CreateVectorIcon("M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z", 12.5),
+                InputGestureText = "Ctrl+D",
+                Style = menuItemStyle
+            };
+            miOpenDir.Click += (s, ev) =>
+            {
+                OpenItemDirectory(item);
+            };
+            menu.Items.Add(miOpenDir);
+
+            menu.PlacementTarget = targetElement;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+            menu.IsOpen = true;
+        }
+
+        private void OpenItemDirectory(ShortCutItem item)
+        {
+            if (item == null) return;
+
+            string? dir = ResolveTargetDirectory(item);
+            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = $"\"{dir}\"",
+                        UseShellExecute = true
+                    });
+                    HideWindow();
+                    return;
+                }
+                catch { }
+            }
+
+            MessageBox.Show($"未能定位到有效的目标目录！\n\n命令行: {item.CommandLine}\n工作目录: {item.WorkingDir}", "ALTRun", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private static string? ResolveTargetDirectory(ShortCutItem item)
+        {
+            if (item == null) return null;
+
+            // 1. 如果显式配置了有效的 WorkingDir
+            if (!string.IsNullOrWhiteSpace(item.WorkingDir))
+            {
+                string expWorkingDir = Environment.ExpandEnvironmentVariables(item.WorkingDir.Trim().Trim('\"'));
+                if (Directory.Exists(expWorkingDir))
+                {
+                    return expWorkingDir;
+                }
+            }
+
+            string cmd = (item.CommandLine ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(cmd)) return null;
+
+            // 2. 剥除旧版前缀修饰符 @ / @+ / @-
+            if (cmd.StartsWith("@+") || cmd.StartsWith("@-"))
+            {
+                cmd = cmd.Substring(2).TrimStart();
+            }
+            else if (cmd.StartsWith("@"))
+            {
+                cmd = cmd.Substring(1).TrimStart();
+            }
+
+            // 3. 展开系统环境变量
+            cmd = Environment.ExpandEnvironmentVariables(cmd);
+
+            // 4. 去除外层引号
+            string targetPath = cmd;
+            if (targetPath.StartsWith("\""))
+            {
+                int endQuote = targetPath.IndexOf('\"', 1);
+                if (endQuote > 0)
+                {
+                    targetPath = targetPath.Substring(1, endQuote - 1).Trim();
+                }
+                else
+                {
+                    targetPath = targetPath.Trim('\"');
+                }
+            }
+
+            // 5. 如果 targetPath 本身就是存在的目录
+            if (Directory.Exists(targetPath))
+            {
+                return targetPath;
+            }
+
+            // 6. 如果 targetPath 是存在的文件
+            if (File.Exists(targetPath))
+            {
+                return Path.GetDirectoryName(targetPath);
+            }
+
+            // 7. 处理包含参数的命令行
+            string[] parts = cmd.Split(' ');
+            if (parts.Length > 1)
+            {
+                string first = parts[0].Trim('\"');
+                if (File.Exists(first))
+                {
+                    return Path.GetDirectoryName(first);
+                }
+                if (Directory.Exists(first))
+                {
+                    return first;
+                }
+
+                string last = parts[parts.Length - 1].Trim('\"');
+                if (File.Exists(last))
+                {
+                    return Path.GetDirectoryName(last);
+                }
+                if (Directory.Exists(last))
+                {
+                    return last;
+                }
+            }
+
+            // 8. 尝试从 Windows 注册表解析文件名
+            try
+            {
+                string exeName = targetPath;
+                if (!exeName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    exeName += ".exe";
+                }
+
+                using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey($@"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{exeName}");
+                if (key != null)
+                {
+                    string? appPath = key.GetValue("") as string;
+                    if (!string.IsNullOrEmpty(appPath))
+                    {
+                        appPath = appPath.Trim().Trim('\"');
+                        if (File.Exists(appPath)) return Path.GetDirectoryName(appPath);
+                    }
+                    string? appDir = key.GetValue("Path") as string;
+                    if (!string.IsNullOrEmpty(appDir) && Directory.Exists(appDir))
+                    {
+                        return appDir.Trim().Trim('\"');
+                    }
+                }
+            }
+            catch { }
+
+            return null;
+        }
+
         private void ResultListBox_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
 
@@ -783,14 +1074,7 @@ namespace ALTRun.Views
             menu.Items.Add(darkHeader);
             foreach (var th in ThemeManager.Themes.Where(t => t.IsDark))
             {
-                var itemTh = new MenuItem
-                {
-                    Header = $"{th.Icon}  {th.Name}  ({th.Description})",
-                    IsChecked = th.Id.Equals(currentThemeId, StringComparison.OrdinalIgnoreCase),
-                    FontSize = 14
-                };
-                itemTh.Click += (s, ev) => SetTheme(th.Id);
-                menu.Items.Add(itemTh);
+                menu.Items.Add(CreateThemeMenuItem(th, currentThemeId, 13.5));
             }
 
             menu.Items.Add(new Separator());
@@ -799,14 +1083,7 @@ namespace ALTRun.Views
             menu.Items.Add(lightHeader);
             foreach (var th in ThemeManager.Themes.Where(t => !t.IsDark))
             {
-                var itemTh = new MenuItem
-                {
-                    Header = $"{th.Icon}  {th.Name}  ({th.Description})",
-                    IsChecked = th.Id.Equals(currentThemeId, StringComparison.OrdinalIgnoreCase),
-                    FontSize = 14
-                };
-                itemTh.Click += (s, ev) => SetTheme(th.Id);
-                menu.Items.Add(itemTh);
+                menu.Items.Add(CreateThemeMenuItem(th, currentThemeId, 13.5));
             }
 
             menu.PlacementTarget = BtnTheme;

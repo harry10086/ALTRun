@@ -60,6 +60,44 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <!-- 顶栏图标按钮通用样式 (带统一 6px 圆角悬停背景) -->
+        <Style x:Key="TopIconButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="7"/>
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="BtnBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BtnBorder" Property="Background" Value="{DynamicResource HoverBgBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="BtnBorder" Property="Background" Value="{DynamicResource HighlightBgBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 现代沉浸式弹出菜单样式 (继承自 App.xaml 全局统一规范) -->
+        <Style x:Key="ModernContextMenu" TargetType="ContextMenu" BasedOn="{StaticResource {x:Type ContextMenu}}"/>
+        <Style x:Key="ModernMenuItem" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}"/>
+        <Style x:Key="ModernMenuSeparator" TargetType="Separator" BasedOn="{StaticResource {x:Type Separator}}"/>
     </Window.Resources>
 
     <!-- 主外壳容器：高质感卡片 + 边框 -->
@@ -106,7 +144,16 @@
                          InputMethod.IsInputMethodEnabled="True"
                          InputMethod.PreferredImeState="Off"
                          InputMethod.PreferredImeConversionMode="Alphanumeric"
-                         TextChanged="SearchBox_TextChanged"/>
+                         TextChanged="SearchBox_TextChanged">
+                    <TextBox.Template>
+                        <ControlTemplate TargetType="{x:Type TextBox}">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Focusable="False"
+                                          HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollBarVisibility="Hidden"/>
+                        </ControlTemplate>
+                    </TextBox.Template>
+                </TextBox>
 
                 <!-- 占位符文字 -->
                 <TextBlock x:Name="PlaceholderText"
@@ -120,28 +167,36 @@
                 <!-- 主题风格切换菜单 -->
                 <Button Grid.Column="2"
                         x:Name="BtnTheme"
-                        Content="🎨"
-                        FontSize="16"
-                        Foreground="{DynamicResource TextMutedBrush}"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Cursor="Hand"
-                        Padding="6,2"
+                        Style="{StaticResource TopIconButton}"
                         Margin="0,0,4,0"
                         ToolTip="选择外观主题风格"
-                        Click="BtnTheme_Click"/>
+                        Click="BtnTheme_Click">
+                    <Path Data="M12,3A9,9 0 0,0 3,12A9,9 0 0,0 12,21C13.4,21 14.5,19.9 14.5,18.5C14.5,17.8 14.2,17.2 13.8,16.8C13.4,16.4 13.1,15.8 13.1,15.2C13.1,14 14.1,13 15.3,13H17C19.2,13 21,11.2 21,9C21,5.7 17,3 12,3M6,12C5.4,12 5,11.6 5,11C5,10.4 5.4,10 6,10C6.6,10 7,10.4 7,11C7,11.6 6.6,12 6,12M9,8C8.4,8 8,7.6 8,7C8,6.4 8.4,6 9,6C9.6,6 10,6.4 10,7C10,7.6 9.6,8 9,8M15,8C14.4,8 14,7.6 14,7C14,6.4 14.4,6 15,6C15.6,6 16,6.4 16,7C16,7.6 15.6,8 15,8M18,12C17.4,12 17,11.6 17,11C17,10.4 17.4,10 18,10C18.6,10 19,10.4 19,11C19,11.6 18.6,12 18,12Z"
+                          Stroke="{DynamicResource TextMutedBrush}"
+                          StrokeThickness="1.5"
+                          Fill="Transparent"
+                          Width="18"
+                          Height="18"
+                          Stretch="Uniform"
+                          VerticalAlignment="Center"
+                          HorizontalAlignment="Center"/>
+                </Button>
 
-                <!-- 管理按钮 -->
+                <!-- 管理按钮 (线条镂空齿轮) -->
                 <Button Grid.Column="3"
-                        Content="⚙"
-                        FontSize="16"
-                        Foreground="{DynamicResource TextMutedBrush}"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Cursor="Hand"
-                        Padding="6,2"
+                        Style="{StaticResource TopIconButton}"
                         ToolTip="快捷方式管理"
-                        Click="BtnManage_Click"/>
+                        Click="BtnManage_Click">
+                    <Path Data="M12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15M19.4,13C19.4,12.7 19.5,12.3 19.5,12C19.5,11.7 19.4,11.3 19.4,11L21.5,9.4C21.7,9.2 21.8,9 21.6,8.7L19.6,5.3C19.5,5.1 19.2,5 19,5.1L16.5,6.1C16,5.7 15.5,5.4 14.9,5.1L14.5,2.4C14.5,2.2 14.3,2 14,2H10C9.7,2 9.5,2.2 9.5,2.4L9.1,5.1C8.5,5.3 8,5.7 7.5,6.1L5,5.1C4.8,5 4.5,5.1 4.4,5.3L2.4,8.7C2.2,9 2.3,9.2 2.5,9.4L4.6,11C4.6,11.3 4.5,11.7 4.5,12C4.5,12.3 4.6,12.7 4.6,13L2.5,14.6C2.3,14.8 2.2,15 2.4,15.3L4.4,18.7C4.5,18.9 4.8,19 5,18.9L7.5,17.9C8,18.3 8.5,18.7 9.1,18.9L9.5,21.6C9.5,21.8 9.7,22 10,22H14C14.3,22 14.5,21.8 14.5,21.6L14.9,18.9C15.5,18.7 16,18.3 16.5,17.9L19,18.9C19.2,19 19.5,18.9 19.6,18.7L21.6,15.3C21.7,15 21.7,14.8 21.5,14.6L19.4,13Z"
+                          Stroke="{DynamicResource TextMutedBrush}"
+                          StrokeThickness="1.5"
+                          Fill="Transparent"
+                          Width="18"
+                          Height="18"
+                          Stretch="Uniform"
+                          VerticalAlignment="Center"
+                          HorizontalAlignment="Center"/>
+                </Button>
             </Grid>
 
             <!-- 2. 分割线 -->
@@ -161,6 +216,7 @@
                      Padding="10,6"
                      ItemContainerStyle="{StaticResource ResultItemStyle}"
                      PreviewMouseLeftButtonUp="ResultListBox_PreviewMouseLeftButtonUp"
+                     PreviewMouseRightButtonUp="ResultListBox_PreviewMouseRightButtonUp"
                      MouseDoubleClick="ResultListBox_MouseDoubleClick">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
@@ -248,17 +304,11 @@
                         <TextBlock Text="Ctrl+↵ 提权运行" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
                         <TextBlock Text="0~9 键直达" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
                         <TextBlock Text="Tab 补全" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
+                        <TextBlock Text="Ctrl+D / 右键 目录" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
                         <TextBlock Text="Esc 隐藏" FontSize="12" Foreground="{DynamicResource TextMutedBrush}"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="支持拖入 ShortCutList.txt / 文件直接添加"
-                                   FontSize="12"
-                                   Foreground="{DynamicResource TextMutedBrush}"
-                                   VerticalAlignment="Center"
-                                   Margin="0,0,8,0"/>
-                        <ResizeGrip VerticalAlignment="Bottom" HorizontalAlignment="Right" Opacity="0.45" Cursor="SizeNWSE"/>
-                    </StackPanel>
+                    <ResizeGrip Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Right" Opacity="0.45" Cursor="SizeNWSE"/>
                 </Grid>
             </Border>
         </Grid>

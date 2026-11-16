@@ -21,14 +21,47 @@ namespace ALTRun.Views
         private ObservableCollection<ShortCutItem> _viewList = new();
         private ShortCutItem? _selectedItem;
 
-        public ManageWindow()
+        public ManageWindow(ShortCutItem? itemToEdit = null, bool addNew = false)
         {
             InitializeComponent();
             InitVersionInfo();
             InitHotKeyControls();
             var currentTheme = ThemeManager.GetTheme(App.Config.Settings.Theme, App.Config.Settings.DarkMode);
             ApplyTheme(currentTheme);
-            Loaded += ManageWindow_Loaded;
+
+            Loaded += (s, e) =>
+            {
+                ManageWindow_Loaded(s, e);
+
+                if (addNew)
+                {
+                    BtnAdd_Click(this, new RoutedEventArgs());
+                }
+                else if (itemToEdit != null)
+                {
+                    SelectAndFocusItem(itemToEdit);
+                }
+            };
+        }
+
+        public void SelectAndFocusItem(ShortCutItem item)
+        {
+            var match = App.Config.Settings.ShortCuts.FirstOrDefault(x => x == item ||
+                (x.ShortCut == item.ShortCut && x.Name == item.Name && x.CommandLine == item.CommandLine));
+
+            if (match != null)
+            {
+                TxtFilter.Text = string.Empty;
+                RefreshGrid();
+                ShortcutGrid.SelectedItem = match;
+                ShortcutGrid.ScrollIntoView(match);
+                _selectedItem = match;
+                EditShortCut.Text = match.ShortCut;
+                EditName.Text = match.Name;
+                EditCommandLine.Text = match.CommandLine;
+                EditShortCut.Focus();
+                EditShortCut.SelectAll();
+            }
         }
 
         private void InitVersionInfo()
@@ -36,12 +69,12 @@ namespace ALTRun.Views
             try
             {
                 var ver = typeof(ManageWindow).Assembly.GetName().Version;
-                string verStr = ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "v2.0.7";
+                string verStr = ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "v2.0.8";
                 Title = $"ALTRun {verStr} - 快捷方式管理中心";
             }
             catch
             {
-                Title = "ALTRun v2.0.7 - 快捷方式管理中心";
+                Title = "ALTRun v2.0.8 - 快捷方式管理中心";
             }
         }
 
@@ -365,6 +398,11 @@ namespace ALTRun.Views
                     WpfMessageBox.Show("已新增快捷方式！", "ALTRun", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
+        }
+
+        public void BtnAdd_Click_External()
+        {
+            BtnAdd_Click(this, new RoutedEventArgs());
         }
 
         private void BtnAdd_Click(object sender, RoutedEventArgs e)

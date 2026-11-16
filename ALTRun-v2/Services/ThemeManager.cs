@@ -37,12 +37,12 @@ namespace ALTRun.Services
         public static List<ThemeDefinition> Themes { get; } = new()
         {
             // ========================= 🌙 暗色系列 (Dark Themes) =========================
-            // 1. 🔮 黑曜灵动 (Obsidian Violet) - Raycast / Linear 极客黑与魅紫
+            // 1. 🟣 黑曜灵动 (Obsidian Violet) - Raycast / Linear 极客黑与魅紫
             new ThemeDefinition
             {
                 Id = "obsidian",
                 Name = "黑曜灵动",
-                Icon = "🔮",
+                Icon = "🟣",
                 Description = "极客深空曜黑与高雅紫罗兰，沉稳现代 (推荐)",
                 IsDark = true,
                 BgColor = Color.FromRgb(0x13, 0x13, 0x18),
@@ -59,12 +59,12 @@ namespace ALTRun.Services
                 SelectionBorderColor = Color.FromRgb(0x90, 0x65, 0xF6)
             },
 
-            // 2. 🌌 东京之夜 (Tokyo Night) - 沉浸靛青夜空与梦幻粉紫
+            // 2. 🔵 东京之夜 (Tokyo Night) - 沉浸靛青夜空与梦幻粉紫
             new ThemeDefinition
             {
                 Id = "tokyo",
                 Name = "东京之夜",
-                Icon = "🌌",
+                Icon = "🔵",
                 Description = "经典深靛蓝夜空与梦幻粉紫，极度护眼",
                 IsDark = true,
                 BgColor = Color.FromRgb(0x1A, 0x1B, 0x26),
@@ -81,12 +81,12 @@ namespace ALTRun.Services
                 SelectionBorderColor = Color.FromRgb(0x7A, 0xA2, 0xF7)
             },
 
-            // 3. 🌿 赛博薄荷 (Cyber Mint) - 极客纯黑搭配霓虹薄荷绿
+            // 3. 🟢 赛博薄荷 (Cyber Mint) - 极客纯黑搭配霓虹薄荷绿
             new ThemeDefinition
             {
                 Id = "cyber",
                 Name = "赛博薄荷",
-                Icon = "🌿",
+                Icon = "🟢",
                 Description = "极客曜黑与清新霓虹翠绿，锋芒科技感",
                 IsDark = true,
                 BgColor = Color.FromRgb(0x0D, 0x11, 0x17),
@@ -103,12 +103,12 @@ namespace ALTRun.Services
                 SelectionBorderColor = Color.FromRgb(0x10, 0xB9, 0x81)
             },
 
-            // 4. ☕ 暖咖摩卡 (Warm Mocha) - Catppuccin 柔和护眼暖咖
+            // 4. 🟤 暖咖摩卡 (Warm Mocha) - Catppuccin 柔和护眼暖咖
             new ThemeDefinition
             {
                 Id = "mocha",
                 Name = "暖咖摩卡",
-                Icon = "☕",
+                Icon = "🟤",
                 Description = "柔和温润的暖调咖啡与珊瑚粉，细腻护眼",
                 IsDark = true,
                 BgColor = Color.FromRgb(0x1E, 0x1E, 0x2E),
@@ -148,12 +148,12 @@ namespace ALTRun.Services
             },
 
             // ========================= ☀️ 浅色系列 (Light Themes) =========================
-            // 6. ☀️ 珍珠晨曦 (Pearl Azure) - 清爽极简象牙白与蔚蓝海风
+            // 6. 🔷 珍珠晨曦 (Pearl Azure) - 清爽极简象牙白与蔚蓝海风
             new ThemeDefinition
             {
                 Id = "pearl",
                 Name = "珍珠晨曦",
-                Icon = "☀️",
+                Icon = "🔷",
                 Description = "纯净雅白与清爽天青海风，明亮通透",
                 IsDark = false,
                 BgColor = Color.FromRgb(0xFA, 0xFA, 0xFD),
@@ -192,12 +192,12 @@ namespace ALTRun.Services
                 SelectionBorderColor = Color.FromRgb(0xE1, 0x1D, 0x48)
             },
 
-            // 8. 🍵 浅山抹茶 (Matcha Nature) - 护眼柔和草木抹茶青
+            // 8. 🟢 浅山抹茶 (Matcha Nature) - 护眼柔和草木抹茶青
             new ThemeDefinition
             {
                 Id = "matcha",
                 Name = "浅山抹茶",
-                Icon = "🍵",
+                Icon = "🟢",
                 Description = "柔和米白与草木抹茶绿，极其护眼自然",
                 IsDark = false,
                 BgColor = Color.FromRgb(0xF4, 0xF9, 0xF5),
@@ -214,12 +214,12 @@ namespace ALTRun.Services
                 SelectionBorderColor = Color.FromRgb(0x05, 0x96, 0x69)
             },
 
-            // 9. 🍯 暖阳琥珀 (Warm Amber) - 温暖羊皮纸本与蜜金
+            // 9. 🟡 暖阳琥珀 (Warm Amber) - 温暖羊皮纸本与蜜金
             new ThemeDefinition
             {
                 Id = "amber",
                 Name = "暖阳琥珀",
-                Icon = "🍯",
+                Icon = "🟡",
                 Description = "暖感羊皮纸与琥珀蜜金，温馨雅致",
                 IsDark = false,
                 BgColor = Color.FromRgb(0xFD, 0xFB, 0xF7),
@@ -258,12 +258,12 @@ namespace ALTRun.Services
                 SelectionBorderColor = Color.FromRgb(0x4F, 0x46, 0xE5)
             },
 
-            // 11. 🪻 紫藤花语 (Lavender Mist) - 优雅薰衣草浅紫
+            // 11. 🟣 紫藤花语 (Lavender Mist) - 优雅薰衣草浅紫
             new ThemeDefinition
             {
                 Id = "lavender",
                 Name = "紫藤花语",
-                Icon = "🪻",
+                Icon = "🟣",
                 Description = "优雅薰衣草浅紫与丁香高光，唯美柔和",
                 IsDark = false,
                 BgColor = Color.FromRgb(0xF8, 0xF6, 0xFD),
@@ -280,12 +280,12 @@ namespace ALTRun.Services
                 SelectionBorderColor = Color.FromRgb(0x7C, 0x3A, 0xED)
             },
 
-            // 12. 🍊 蜜柑苏打 (Citrus Soda) - 活力橙色与纯白
+            // 12. 🟠 蜜柑苏打 (Citrus Soda) - 活力橙色与纯白
             new ThemeDefinition
             {
                 Id = "citrus",
                 Name = "蜜柑苏打",
-                Icon = "🍊",
+                Icon = "🟠",
                 Description = "元气蜜柑暖橙与晨曦白，活力满满",
                 IsDark = false,
                 BgColor = Color.FromRgb(0xFF, 0xFB, 0xF5),
@@ -314,11 +314,9 @@ namespace ALTRun.Services
             return isDarkDefault ? Themes[0] : Themes.First(x => !x.IsDark);
         }
 
-        public static void ApplyTheme(Window window, ThemeDefinition theme)
+        public static void ApplyTheme(ResourceDictionary res, ThemeDefinition theme)
         {
-            var res = window.Resources;
-
-            // 1. MainWindow 资源键
+            // 1. MainWindow 核心资源画刷
             res["BgBrush"] = new SolidColorBrush(theme.BgColor);
             res["CardBgBrush"] = new SolidColorBrush(theme.CardBgColor);
             res["BorderBrush"] = new SolidColorBrush(theme.BorderColor);
@@ -331,19 +329,28 @@ namespace ALTRun.Services
             res["HoverBgBrush"] = new SolidColorBrush(theme.HoverBgColor);
             res["HighlightBgBrush"] = new SolidColorBrush(theme.HighlightBgColor);
 
-            // 2. ManageWindow 资源键
+            // 2. ManageWindow / ScanAppsWindow 控件画刷映射
             res["WindowBg"] = new SolidColorBrush(theme.BgColor);
             res["CardBg"] = new SolidColorBrush(theme.CardBgColor);
             res["TextPrimary"] = new SolidColorBrush(theme.TextColor);
             res["TextSecondary"] = new SolidColorBrush(theme.TextMutedColor);
+            res["TextMuted"] = new SolidColorBrush(theme.TextMutedColor);
             res["InputBg"] = new SolidColorBrush(theme.CardBgColor);
             res["InputBorder"] = new SolidColorBrush(theme.BorderColor);
+            res["BtnBg"] = new SolidColorBrush(theme.CardBgColor);
+            res["BtnFg"] = new SolidColorBrush(theme.TextColor);
+            res["BtnBorder"] = new SolidColorBrush(theme.BorderColor);
             res["TableSelectBg"] = new SolidColorBrush(theme.HighlightBgColor);
             res["TableSelectBorder"] = new SolidColorBrush(theme.SelectionBorderColor);
             res["TableSelectText"] = new SolidColorBrush(theme.TextColor);
             res["TableSelectSubText"] = new SolidColorBrush(theme.AccentHoverColor);
+        }
 
-            // 3. 同步 DWM 窗口暗色标题栏特性
+        public static void ApplyTheme(Window window, ThemeDefinition theme)
+        {
+            ApplyTheme(window.Resources, theme);
+
+            // 同步 DWM 窗口暗色标题栏特性
             try
             {
                 DwmHelper.ApplyModernWindowStyles(window, theme.IsDark);
@@ -355,6 +362,9 @@ namespace ALTRun.Services
         {
             if (Application.Current != null)
             {
+                // 先同步更新 Application.Current.Resources，让所有无父级窗口的托盘 ContextMenu 与浮动 Popup 立即获得正确主题
+                ApplyTheme(Application.Current.Resources, theme);
+
                 foreach (Window win in Application.Current.Windows)
                 {
                     ApplyTheme(win, theme);
