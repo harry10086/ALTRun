@@ -11,7 +11,12 @@ namespace ALTRun.Services
     public static class CommandExecutor
     {
         public static bool Execute(ShortCutItem item, string userArg, bool runAsAdmin = false)
+            => Execute(item, userArg, runAsAdmin, out _);
+
+        public static bool Execute(ShortCutItem item, string userArg, bool runAsAdmin, out string? errorMessage)
         {
+            errorMessage = null;
+
             if (item == null || string.IsNullOrWhiteSpace(item.CommandLine))
                 return false;
 
@@ -157,6 +162,7 @@ namespace ALTRun.Services
                     return true;
                 }
 
+                errorMessage = "未找到该文件，请检查";
                 Debug.WriteLine($"Failed to execute: {targetCmd}, error: {ex.Message}");
                 return false;
             }

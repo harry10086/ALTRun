@@ -25,12 +25,24 @@ namespace ALTRun.Views
 
         private bool _isSystemIntegrationInitialized = false;
 
+        // 文件未找到提示窗：非模态、位于主界面上层，且打开期间不触发“失焦隐藏”
+        private Window? _missingFileTip;
+        private bool _suppressHideOnDeactivate;
+
         public MainWindow()
         {
             InitializeComponent();
             ApplySavedWindowSize();
             ApplyTheme(ThemeManager.GetTheme(App.Config.Settings.Theme, App.Config.Settings.DarkMode));
             SourceInitialized += (s, e) => InitializeSystemIntegration();
+            Activated += (s, e) =>
+            {
+                // 提示窗打开时，即使主界面被再次激活，也把提示窗保持在最上层
+                if (_missingFileTip != null && _missingFileTip.IsLoaded)
+                {
+                    _missingFileTip.Activate();
+                }
+            };
             Loaded += MainWindow_Loaded;
             Closing += (s, e) =>
             {
@@ -592,7 +604,33 @@ namespace ALTRun.Views
         {
             if (e.Key == Key.Escape)
             {
+                // 第一次 Esc：清空输入但保留界面；第二次（输入本来就是空的）Esc：隐藏界面
+                if (!string.IsNullOrEmpty(SearchBox.Text))
+                {
+                    SearchBox.Text = string.Empty;
+                    SearchBox.Focus();
+                    e.Handled = true;
+                    return;
+                }
+
                 HideWindow();
+                e.Handled = true;
+                return;
+            }
+
+            // 输入后按空格 = 执行当前选中项（Shift+Space 仍可输入普通空格）
+            if (e.Key == Key.Space &&
+                (Keyboard.Modifiers & ModifierKeys.Shift) != ModifierKeys.Shift &&
+                SearchBox.IsKeyboardFocused &&
+                SearchBox.SelectionLength == 0 &&
+                SearchBox.CaretIndex == SearchBox.Text.Length &&
+                !string.IsNullOrWhiteSpace(SearchBox.Text) &&
+                !SearchBox.Text.TrimStart().StartsWith(">") &&
+                !SearchBox.Text.TrimStart().StartsWith("=") &&
+                ResultListBox.SelectedItem is ShortCutItem)
+            {
+                bool runAsAdmin = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+                ExecuteSelectedItem(runAsAdmin);
                 e.Handled = true;
                 return;
             }
@@ -730,19 +768,138 @@ namespace ALTRun.Views
             }
         }
 
+        /// <summary>
+        /// 鼠标滚轮：每格切换一个候选项。候选全部可见时列表本身不会滚动；
+        /// 候选超出可视区时 ScrollIntoView 会把新选中项滚入视野。
+        /// </summary>
+        private void Window_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (ResultListBox.Items.Count == 0) return;
+
+            int steps = Math.Max(1, Math.Abs(e.Delta) / 120);
+            if (e.Delta > 0) steps = -steps; // 向上滚动选中上一项
+
+            int current = ResultListBox.SelectedIndex;
+            int target = current < 0 ? 0 : Math.Min(ResultListBox.Items.Count - 1, Math.Max(0, current + steps));
+
+            if (current != target)
+            {
+                ResultListBox.SelectedIndex = target;
+                ResultListBox.ScrollIntoView(ResultListBox.SelectedItem);
+            }
+            e.Handled = true;
+        }
+
         private void ExecuteSelectedItem(bool runAsAdmin)
         {
             if (ResultListBox.SelectedItem is ShortCutItem item)
             {
                 string param = _currentResult.ExtractedParam;
-                bool success = CommandExecutor.Execute(item, param, runAsAdmin);
+                bool success = CommandExecutor.Execute(item, param, runAsAdmin, out string? errorMessage);
 
                 if (success)
                 {
                     App.Config.Save();
                     HideWindow();
                 }
+                else if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    ShowMissingFileTip(errorMessage);
+                }
             }
+        }
+
+        /// <summary>
+        /// 显示“文件未找到”提示：非模态、置顶于主界面上层，在屏幕工作区内上下左右居中；
+        /// 高度随内容自适应，确保“确定”按钮完整显示；按钮默认聚焦，空格/Enter 均可关闭；
+        /// 打开期间抑制主界面的失焦自动隐藏。
+        /// </summary>
+        private void ShowMissingFileTip(string message)
+        {
+            // 已经有一个提示窗时只把它激活，不重复弹出
+            if (_missingFileTip != null && _missingFileTip.IsLoaded)
+            {
+                _missingFileTip.Activate();
+                return;
+            }
+
+            Rect area = SystemParameters.WorkArea;
+
+            var tip = new Window
+            {
+                Title = "ALTRun 提示",
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.Manual,
+                Width = 320,
+                SizeToContent = SizeToContent.Height,
+                MaxHeight = area.Height - 40,
+                ResizeMode = ResizeMode.NoResize,
+                ShowInTaskbar = false,
+                Topmost = true
+            };
+
+            tip.Background = TryFindResource("CardBgBrush") as System.Windows.Media.Brush
+                ?? System.Windows.SystemColors.WindowBrush;
+            tip.Foreground = TryFindResource("TextBrush") as System.Windows.Media.Brush
+                ?? System.Windows.SystemColors.ControlTextBrush;
+
+            var panel = new StackPanel { Margin = new Thickness(16) };
+            panel.Children.Add(new TextBlock
+            {
+                Text = message,
+                FontSize = 15,
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Top
+            });
+
+            var ok = new System.Windows.Controls.Button
+            {
+                Content = "确定",
+                Width = 86,
+                Height = 30,
+                IsDefault = true,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                Margin = new Thickness(0, 12, 0, 0)
+            };
+            ok.Click += (_, _) => tip.Close();
+            panel.Children.Add(ok);
+            tip.Content = panel;
+
+            // 空格 / Enter（以及 Esc）均可关闭提示窗
+            tip.PreviewKeyDown += (_, e) =>
+            {
+                if (e.Key == Key.Enter || e.Key == Key.Space || e.Key == Key.Escape)
+                {
+                    tip.Close();
+                    e.Handled = true;
+                }
+            };
+
+            // 在屏幕工作区内上下左右居中。SizeToContent 下需在 Loaded 后拿到实际尺寸再定位，
+            // 同时把焦点交给“确定”按钮，使其可用空格 / Enter 关闭。
+            tip.Loaded += (_, _) =>
+            {
+                double left = area.Left + (area.Width - tip.ActualWidth) / 2;
+                double top = area.Top + (area.Height - tip.ActualHeight) / 2;
+                tip.Left = Math.Max(area.Left, left);
+                tip.Top = Math.Max(area.Top, top);
+                ok.Focus();
+            };
+
+            _missingFileTip = tip;
+            _suppressHideOnDeactivate = true;
+            tip.Closed += (_, _) =>
+            {
+                _missingFileTip = null;
+                _suppressHideOnDeactivate = false;
+                if (IsLoaded)
+                {
+                    Activate();
+                    SearchBox.Focus();
+                }
+            };
+
+            tip.Show();
         }
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -1059,6 +1216,9 @@ namespace ALTRun.Views
 
         private void Window_Deactivated(object sender, EventArgs e)
         {
+            // 提示窗打开期间，主界面失去焦点属于预期行为，不能触发自动隐藏
+            if (_suppressHideOnDeactivate) return;
+
             if (App.Config.Settings.HideWhenLostFocus)
             {
                 HideWindow();

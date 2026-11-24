@@ -33,6 +33,14 @@ namespace ALTRun.Services
 
         public ConfigManager()
         {
+            // .NET Core / .NET 8 默认不注册 GB18030 / GBK 代码页。
+            // 必须在读取旧版 ShortCutList.txt（GBK 编码）之前注册，否则会静默退回 UTF-8，中文变乱码。
+            try
+            {
+                Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            }
+            catch { }
+
             _appDir = AppDomain.CurrentDomain.BaseDirectory;
             _jsonConfigPath = Path.Combine(_appDir, "ALTRun_Config.json");
         }
@@ -168,15 +176,8 @@ namespace ALTRun.Services
 
             try
             {
-                string[] lines;
-                try
-                {
-                    lines = File.ReadAllLines(filePath, Encoding.GetEncoding("GB18030"));
-                }
-                catch
-                {
-                    lines = File.ReadAllLines(filePath, Encoding.UTF8);
-                }
+                // 旧版配置是 GBK/ANSI，新版导出可能是 UTF-8，按内容自动判断，避免用错编码产生乱码
+                string[] lines = File.ReadAllLines(filePath, DetectLegacyEncoding(filePath));
 
                 foreach (var rawLine in lines)
                 {
@@ -292,12 +293,30 @@ namespace ALTRun.Services
             return list;
         }
 
+        /// <summary>
+        /// 自动识别旧版配置文本编码：能用严格 UTF-8 解码就当 UTF-8，否则按 GB18030（GBK）读取。
+        /// </summary>
+        private static Encoding DetectLegacyEncoding(string path)
+        {
+            byte[] bytes = File.ReadAllBytes(path);
+            var strictUtf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+            try
+            {
+                strictUtf8.GetString(bytes); // 非法 UTF-8 字节会抛 DecoderFallbackException
+                return strictUtf8;
+            }
+            catch (DecoderFallbackException)
+            {
+                return Encoding.GetEncoding("GB18030");
+            }
+        }
+
         private void ApplyFavoriteList(string favPath)
         {
             if (!File.Exists(favPath)) return;
             try
             {
-                var lines = File.ReadAllLines(favPath, Encoding.GetEncoding("GB18030"));
+                var lines = File.ReadAllLines(favPath, DetectLegacyEncoding(favPath));
                 foreach (var line in lines)
                 {
                     var parts = line.Split('|');

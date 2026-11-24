@@ -8,6 +8,8 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- WPF + WinForms 混合项目：WFAC010 是 WinForms 分析器对 manifest 中 DPI 声明的误报，WPF 的 PerMonitorV2 必须保留在 manifest 中 -->
+    <NoWarn>$(NoWarn);WFAC010;WFO0003</NoWarn>
     <ApplicationIcon>ALTRun.ico</ApplicationIcon>
     <Version>2.0.8</Version>
     <AssemblyVersion>2.0.8.0</AssemblyVersion>

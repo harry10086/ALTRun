@@ -14,6 +14,7 @@
         ShowInTaskbar="False"
         FontFamily="Segoe UI, Microsoft YaHei UI, sans-serif"
         PreviewKeyDown="Window_PreviewKeyDown"
+        PreviewMouseWheel="Window_PreviewMouseWheel"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         Deactivated="Window_Deactivated"
         Drop="Window_Drop"

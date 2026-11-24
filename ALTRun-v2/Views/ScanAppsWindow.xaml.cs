@@ -23,6 +23,7 @@ namespace ALTRun.Views
         public ScanAppsWindow()
         {
             InitializeComponent();
+            WindowHelper.FitToWorkArea(this);
             ApplyCurrentThemeColors();
             Loaded += async (s, e) => await StartScanAsync();
         }

@@ -24,6 +24,7 @@ namespace ALTRun.Views
         public ManageWindow(ShortCutItem? itemToEdit = null, bool addNew = false)
         {
             InitializeComponent();
+            WindowHelper.FitToWorkArea(this);
             InitVersionInfo();
             InitHotKeyControls();
             var currentTheme = ThemeManager.GetTheme(App.Config.Settings.Theme, App.Config.Settings.DarkMode);

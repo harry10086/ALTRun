@@ -344,6 +344,31 @@ namespace ALTRun.Services
             res["TableSelectBorder"] = new SolidColorBrush(theme.SelectionBorderColor);
             res["TableSelectText"] = new SolidColorBrush(theme.TextColor);
             res["TableSelectSubText"] = new SolidColorBrush(theme.AccentHoverColor);
+
+            // 扫描窗口表格：表头、隔行、悬停、选中均由卡片底色派生，保持同色系但深浅不同。
+            // 表头最深、悬停次之，避免暗/浅主题下出现纯黑块。
+            res["HeaderBg"] = new SolidColorBrush(Shade(theme.CardBgColor, -0.12));
+            res["RowAltBg"] = new SolidColorBrush(Shade(theme.CardBgColor, -0.03));
+            res["RowHoverBg"] = new SolidColorBrush(Shade(theme.CardBgColor, -0.06));
+            res["RowSelectedBg"] = new SolidColorBrush(Shade(theme.CardBgColor, -0.14));
+        }
+
+        /// <summary>
+        /// 按比例调整颜色明暗。amount 为负数变暗、正数变亮，取值范围 -1 ~ 1。
+        /// </summary>
+        private static Color Shade(Color color, double amount)
+        {
+            double ratio = Math.Max(-1, Math.Min(1, amount));
+
+            byte Mix(byte channel)
+            {
+                double value = ratio < 0
+                    ? channel * (1 + ratio)
+                    : channel + (255 - channel) * ratio;
+                return (byte)Math.Max(0, Math.Min(255, Math.Round(value)));
+            }
+
+            return Color.FromArgb(color.A, Mix(color.R), Mix(color.G), Mix(color.B));
         }
 
         public static void ApplyTheme(Window window, ThemeDefinition theme)
