@@ -16,7 +16,7 @@
 
 ---
 
-## 🌟 项目简介 (Overview)
+# 🌟 项目简介 (Overview)
 
 **ALTRun** 是一款经典的 Windows 快速启动工具，核心宗旨是用**最少的击键次数快速启动程序或网址**。
 
@@ -32,9 +32,10 @@
 ![altrun1](https://github.mianao.info/https://raw.githubusercontent.com/harry10086/picx-images-hosting/master/altrun/altrun1.webp)
 ---
 
-## ✨ 核心特性 (Features)
+# ✨ 核心特性 (Features)
 
-### 1. 现代化视觉体验 (Win10 / Win11 Fluent & 12款精调主题)
+## 1. 现代化视觉体验 (Win10 / Win11 Fluent & 12款精调主题)
+
 - **DWM 原生特性**：享受 Win11 系统级圆角、立体发光投影、失焦淡出动效。
 - **窗口随心拖拽移动与呼出自动复位**：支持按住顶部提示区、底部状态栏或空白边框自由拖拽移动；呼出时自动恢复屏幕黄金视线居中位置（无需记忆临时偏移坐标）。
 - **窗口尺寸自由拉伸与持久记忆**：四边和四角均可自由缩放拉伸，右下角带有微质感调整手柄（ResizeGrip），尺寸调整后自动持久记忆。
@@ -42,7 +43,7 @@
   - **🌙 暗色系列**：`黑曜灵动` (Raycast极客风)、`东京之夜` (经典深靛紫)、`赛博薄荷` (护眼极客黑绿)、`暖咖摩卡` (Catppuccin温润拿铁)、`经典系统` (Win11 原生深蓝)；
   - **☀️ 浅色系列**：`珍珠晨曦` (象牙雅白与天青海风)、`樱花粉雪` (浪漫柔白与樱粉高光)、`浅山抹茶` (护眼米白与草木抹茶绿)、`暖阳琥珀` (温馨羊皮纸与蜜金)、`极光白昼` (北欧冷灰雪白与极光靛)、`紫藤花语` (唯美薰衣草淡紫)、`蜜柑苏打` (元气纯白与晨曦暖橙)。
   - 点击主界面右上角 `🎨` 按钮、右键托盘图标或在快捷管理中心中即可一秒无缝热重载！
-![altrun2](https://github.mianao.info/https://raw.githubusercontent.com/harry10086/picx-images-hosting/master/altrun/altrun2.webp)
+  ![altrun2](https://github.mianao.info/https://raw.githubusercontent.com/harry10086/picx-images-hosting/master/altrun/altrun2.webp)
 - **Per-Monitor V2 DPI 高清**：在 100%、125%、150%、200% 等任意缩放比例下，文字与图标始终细腻锐利。
 - **大字体舒适管理中心**：快捷方式设置窗口采用 16px 清晰大字号、48px 宽敞行高与高对比度配色规范，彻底告别眯眼看字，选中行与各列信息清晰可辨。
 - **一键浏览添加程序/目录**：新增快捷项时，支持一键点击浏览选取可执行文件（`.exe`、`.lnk`）或文件夹，并自动提取名称与拼音快捷词。
@@ -52,9 +53,10 @@
   - **严苛智能降噪**：内置启发式黑名单机制，自动剔除所有卸载程序（`Uninstall`）、说明文档（`Readme`）、帮助手册（`Help`）与更新修复向导，杜绝误触卸载风险；
   - **自动推导快捷短词**：中文应用自动生成拼音缩写（微信 $\to$ `wx`，网易云 $\to$ `wyy`），英文应用智能提取首字母或常见短键（Chrome $\to$ `chrome`，VSCode $\to$ `code`），且自动去重防冲突；
   - **极致纯文本架构**：与原有快捷方式完全一致，零图标解码与额外渲染开销，常驻内存仅增加几十 KB，保持极致的秒开与轻量。
-![altrun3](https://github.mianao.info/https://raw.githubusercontent.com/harry10086/picx-images-hosting/master/altrun/altrun3.webp)
+  ![altrun3](https://github.mianao.info/https://raw.githubusercontent.com/harry10086/picx-images-hosting/master/altrun/altrun3.webp)
 
-### 2. 极速键盘与鼠标操作交互 (Interaction Efficiency)
+## 2. 极速键盘与鼠标操作交互 (Interaction Efficiency)
+
 - **自由定制全局热键**：支持任意组合 `Alt / Ctrl / Shift / Win + 主键`（如 `Alt+Space`、`Ctrl+Space`、`Alt+R`），在管理中心即可一键修改保存并即时生效。
 - **鼠标单击即运行**：鼠标左键单击任意快捷项直接极速启动并隐藏窗口，同时支持 `Ctrl + 单击` 提权运行。
 - **数字键智能动态决策**：
@@ -68,15 +70,18 @@
 - **Tab 智能补全**：按 `Tab` 键将当前高亮项的快捷短语填入输入框，方便追加参数。
 - **失焦自动隐藏**：点击外部区域或按下 `Esc` 键自动清空并优雅隐藏，绝不抢占工作区焦点。
 
-### 3. 增强搜索与算法 (Smart Matching)
+## 3. 增强搜索与算法 (Smart Matching)
+
 - **中文拼音首字母检索**：无需切换输入法，输入汉字首字母快速过滤（例如：`calc` $\to$ 计算器，`snip` $\to$ 截图工具，`jsq` $\to$ 计算器）。
 - **智能频次自适应加权**：常用程序会自动提高权重，排位随使用习惯动态提前。
 - **参数传递与剪贴板宏**：
   - 命令行中支持 `%p` 占位符（例如配置 `g` 对应 `https://google.com/search?q=%p`，输入 `g rust` 自动组装发起搜索）；
   - 命令行中支持 `{%c}` 或 `%c` 占位符（一键将当前剪贴板文本作为参数传递）。
 
-### 4. 原生系统控制与窗口管理 (Native System & Window Controller)
+## 4. 原生系统控制与窗口管理 (Native System & Window Controller)
+
 **彻底摆脱历史包袱**，无需寻找古老第三方的 `WinCtl.exe`，全部基于 Windows 原生 Win32 API 与 Shell COM 接口重构：
+
 - **🖥️ 极速显示桌面 (`desktop`)**：采用原生 Shell COM `ToggleDesktop()` 接口，零延迟瞬间切换显示桌面（体验完全等同于 `Win + D`）。
 - **🪟 智能前台窗口控制**：呼出 ALTRun 时自动记忆上一活动窗口（`LastForegroundWindow`），直达控制前台工作区：
   - **置顶 / 取消置顶 (`top` / `untop`)**：一键锁定目标窗口为最顶层悬浮，或恢复普通层级；
@@ -87,7 +92,8 @@
   - **锁定屏幕 (`lock`)**：瞬间锁定 Windows 屏幕（等同于 `Win + L`）；
   - **开箱即用运行窗口 (`r`)**：**直接输入 `r` 回车即可打开系统原生“运行 (Win+R)”对话框**，若输入 `r cmd` 则直接携带参数执行。
 
-### 5. 现代 Windows 命令行、算式计算与宏参数
+## 5. 现代 Windows 命令行、算式计算与宏参数
+
 - **直接运行命令行**：输入 `>` 加任意终端命令（如 `> ping baidu.com`、`> ipconfig`），直接调起 Windows Terminal 执行并保留窗口。
 - **即时计算器**：输入 `= 1024*768` 或纯算式 `(15+25)*4`，第一行候选即时显示运算结果，回车直接将结果复制到剪贴板。
 - **文件拖入自动添加**：将任意文件、文件夹、`.lnk` 快捷方式拖拽至 ALTRun 搜索框，即可自动提取路径与名称创建新快捷项。
@@ -98,11 +104,12 @@
 
 ---
 
-## 🚀 开箱即用预置快捷清单 (Out-of-the-Box Presets)
+# 🚀 开箱即用预置快捷清单 (Out-of-the-Box Presets)
 
 > 💡 **零配置开箱即用**：下载解压后无需任何配置文件，启动即可直接使用以下全套系统、工具与网络搜索快捷方式：
 
-### 1. 系统控制与窗口管理
+## 1. 系统控制与窗口管理
+
 | 快捷键 | 功能说明 | 对应原生指令 | 效果描述 |
 | :--- | :--- | :--- | :--- |
 | `desktop` | **显示桌面** | `win:desktop` | 极速切换桌面（等同 Win+D） |
@@ -117,7 +124,8 @@
 | `shutdown` | **立即关机** | `shutdown.exe /s /t 0` | 系统快速关机 |
 | `reboot` | **立即重启** | `shutdown.exe /r /t 0` | 系统重启 |
 
-### 2. 核心系统工具与常用终端
+## 2. 核心系统工具与常用终端
+
 | 快捷键 | 功能说明 | 对应程序/协议 | 效果描述 |
 | :--- | :--- | :--- | :--- |
 | `r` | **系统运行** | `{%p}` | **单独回车唤起 Win+R**，带参即直接执行 |
@@ -132,7 +140,8 @@
 | `dev` | **设备管理器** | `devmgmt.msc` | 查看与更新硬件驱动 |
 | `hosts` | **编辑 Hosts 文件** | `notepad.exe ...\hosts` | 记事本直达 hosts 配置 |
 
-### 3. Windows 10/11 现代设置
+## 3. Windows 10/11 现代设置
+
 | 快捷键 | 功能说明 | 对应协议 | 效果描述 |
 | :--- | :--- | :--- | :--- |
 | `set` | **Windows 设置主页** | `ms-settings:` | 打开系统设置首页 |
@@ -142,7 +151,8 @@
 | `up` | **Windows 更新** | `ms-settings:windowsupdate` | 检查并安装系统补丁 |
 | `vol` | **声音与音量** | `ms-settings:sound` | 调节声音设备与应用音量合成器 |
 
-### 4. 常用 Shell 目录与控制面板
+## 4. 常用 Shell 目录与控制面板
+
 | 快捷键 | 功能说明 | 对应路径 | 效果描述 |
 | :--- | :--- | :--- | :--- |
 | `pc` | **此电脑** | `explorer.exe shell:::{...}` | 打开我的电脑驱动器列表 |
@@ -152,7 +162,8 @@
 | `control` | **传统控制面板** | `control.exe` | 打开经典控制面板 |
 | `sys` | **系统高级属性** | `Sysdm.cpl` | 环境变量与高级系统设置 |
 
-### 5. 增强搜索与剪贴板宏
+## 5. 增强搜索与剪贴板宏
+
 | 快捷键 | 功能说明 | 对应指令 | 效果描述 |
 | :--- | :--- | :--- | :--- |
 | `g` | **Google 搜索** | `https://google.com/search?q=%p` | 示例：输入 `g c#` 搜索 C# |
@@ -163,16 +174,18 @@
 
 ---
 
-## 📂 旧版快捷设置无缝导入与自愈升级 (Data Migration & Self-Healing)
+# 📂 旧版快捷设置无缝导入与自愈升级 (Data Migration & Self-Healing)
 
 您无需手动重新配置快捷项，ALTRun v2.0 提供 **全自动兼容与自愈机制**：
 
-### 1. 自动检测与无感自愈
+## 1. 自动检测与无感自愈
+
 - 启动时自动检测同级目录的 `ShortCutList.txt` 或 `ShortCut.ini`；
 - **智能自愈修复**：旧版配置中遗留的 `@.\WinCtl.exe MinAll` 等已失效的历史指令，会在加载时**自动无感升级为现代原生协议**；
 - **智能补齐**：自动补全缺失的系统级基础快捷指令，确保功能永远完整可用。
 
-### 2. 手动导入与拖拽
+## 2. 手动导入与拖拽
+
 - **拖拽导入**：直接将旧版 `ShortCutList.txt` / `ShortCut.ini` 拖到 ALTRun 悬浮窗口内，程序将自动批量导入；
 - **管理中心导入/导出**：右键点击系统托盘图标 $\to$ 选择 **“快捷方式管理...”**（或点击搜索框右侧齿轮 ⚙），在管理器中提供了：
   - `📥 导入列表`：支持导入旧版列表并与当前配置合并加权；
@@ -180,7 +193,7 @@
 
 ---
 
-## ⌨️ 常用按键操作一览 (Shortcuts Guide)
+# ⌨️ 常用按键操作一览 (Shortcuts Guide)
 
 | 按键 / 组合键 | 功能说明 |
 | :--- | :--- |
@@ -196,15 +209,17 @@
 
 ---
 
-## 🛠️ 开发与编译构建流程 (Development & Build)
+# 🛠️ 开发与编译构建流程 (Development & Build)
 
-### 1. 环境准备
+## 1. 环境准备
+
 - 操作系统：Windows 10 (1903+) 或 Windows 11
 - 运行时：[.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) 或更高版本
 
 > 💡 **提示**：本项目完全支持免提权部署的便携式 .NET 8 SDK。
 
-### 2. 目录结构
+## 2. 目录结构
+
 ```text
 ALTRun/
 ├── ALTRun-v2/              # v2.0 现代核心工程源码
@@ -218,14 +233,16 @@ ALTRun/
 └── README.md               # 项目使用与开发文档
 ```
 
-### 3. 本地调试与运行
+## 3. 本地调试与运行
+
 在仓库根目录下执行：
 ```powershell
 # 运行调试版本
 dotnet run --project ALTRun-v2/ALTRun.csproj
 ```
 
-### 4. 发布单文件绿色版 (Single-File Release)
+## 4. 发布单文件绿色版 (Single-File Release)
+
 执行以下命令，即可生成独立的单文件绿色可执行程序：
 ```powershell
 dotnet publish ALTRun-v2/ALTRun.csproj -c Release -r win-x64 --no-self-contained -p:PublishSingleFile=true -o Bin-v2
@@ -234,7 +251,7 @@ dotnet publish ALTRun-v2/ALTRun.csproj -c Release -r win-x64 --no-self-contained
 
 ---
 
-## 🛡️ 架构与稳定性优化（Win11 报错根除）
+# 🛡️ 架构与稳定性优化（Win11 报错根除）
 
 针对旧版在 Windows 11 下偶尔弹出错误框的问题，v2.0 做了根本性重构：
 1. **剪贴板并发防护**：旧版一次获取失败便抛出 `Cannot open clipboard`；新版内置并发重试等待机制（5 次重试保护），彻底杜绝与 Win11 云剪贴板 (`Win+V`) 的锁竞争冲突。
@@ -243,7 +260,7 @@ dotnet publish ALTRun-v2/ALTRun.csproj -c Release -r win-x64 --no-self-contained
 
 ---
 
-## 📝 版本更新历史 (Changelog)
+# 📝 版本更新历史 (Changelog)
 
 - **v2.0.8 (2026-11)**:
   - 🎨 **全界面 Fluent 现代圆角视觉重构**：
@@ -298,6 +315,6 @@ dotnet publish ALTRun-v2/ALTRun.csproj -c Release -r win-x64 --no-self-contained
 
 ---
 
-## 📄 开源许可证 (License)
+# 📄 开源许可证 (License)
 
 本项目遵循开源软件协议，欢迎提交 Issue 与 Pull Request 共同改进！
