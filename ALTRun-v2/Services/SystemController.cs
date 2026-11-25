@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -97,7 +97,53 @@ namespace ALTRun.Services
         /// </summary>
         public static IntPtr LastForegroundWindow { get; set; } = IntPtr.Zero;
 
-        private static readonly List<IntPtr> _hiddenWindows = new();
+        /// <summary>
+        /// 被 hide / showonly 隐藏的窗口。仅存 HWND 是不够的：窗口销毁后句柄会被系统回收复用，
+        /// 后续 unhide 极可能把无关窗口显示出来。因此同时记录进程 ID 与窗口类名做二次校验。
+        /// </summary>
+        private readonly struct HiddenWindow
+        {
+            public readonly IntPtr Handle;
+            public readonly uint ProcessId;
+            public readonly string ClassName;
+
+            public HiddenWindow(IntPtr handle, uint processId, string className)
+            {
+                Handle = handle;
+                ProcessId = processId;
+                ClassName = className;
+            }
+        }
+
+        private static readonly List<HiddenWindow> _hiddenWindows = new();
+
+        /// <summary>记录窗口当前的身份信息（句柄 + 进程 + 类名），供后续校验是否被句柄复用。</summary>
+        private static HiddenWindow DescribeWindow(IntPtr hwnd)
+        {
+            GetWindowThreadProcessId(hwnd, out uint pid);
+            var sbClass = new StringBuilder(256);
+            GetClassName(hwnd, sbClass, 256);
+            return new HiddenWindow(hwnd, pid, sbClass.ToString());
+        }
+
+        /// <summary>判断记录下来的窗口是否仍是"同一个窗口"，而不是被系统复用句柄后的其他窗口。</summary>
+        private static bool IsSameWindow(HiddenWindow window)
+        {
+            if (!IsWindow(window.Handle)) return false;
+
+            GetWindowThreadProcessId(window.Handle, out uint pid);
+            if (pid != window.ProcessId) return false;
+
+            var sbClass = new StringBuilder(256);
+            GetClassName(window.Handle, sbClass, 256);
+            return string.Equals(sbClass.ToString(), window.ClassName, StringComparison.Ordinal);
+        }
+
+        private static void RememberHiddenWindow(IntPtr hwnd)
+        {
+            if (_hiddenWindows.Exists(x => x.Handle == hwnd)) return;
+            _hiddenWindows.Add(DescribeWindow(hwnd));
+        }
 
         /// <summary>
         /// 获取当前应操作的目标窗口
@@ -129,7 +175,7 @@ namespace ALTRun.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"ToggleDesktop error: {ex.Message}");
+                AppLog.Write($"ToggleDesktop error: {ex.Message}");
             }
         }
 
@@ -147,7 +193,10 @@ namespace ALTRun.Services
                     shell?.MinimizeAll();
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] SystemController.cs:150 静默异常: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -164,7 +213,10 @@ namespace ALTRun.Services
                     shell?.UndoMinimizeAll();
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] SystemController.cs:167 静默异常: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -181,7 +233,10 @@ namespace ALTRun.Services
                     shell?.FileRun();
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] SystemController.cs:184 静默异常: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -189,6 +244,20 @@ namespace ALTRun.Services
         /// </summary>
         public static void CloseAllWindows()
         {
+            // 二次确认：该指令绑定在单个快捷词（closeall）上，一次误按就会给所有窗口发 WM_CLOSE，
+            // 未保存的文档会直接丢失，代价远高于一次确认的成本。
+            // 注意这里故意不指定 Owner：主窗口设了"失焦自动隐藏"，Modal 子窗口会让它被隐藏、
+            // 进而把有 Owner 的对话框一起隐藏；无 Owner 的对话框不受影响。
+            if (System.Windows.MessageBox.Show(
+                    AppStrings.CloseAllConfirmMessage,
+                    AppStrings.CloseAllConfirmTitle,
+                    System.Windows.MessageBoxButton.YesNo,
+                    System.Windows.MessageBoxImage.Warning,
+                    System.Windows.MessageBoxResult.No) != System.Windows.MessageBoxResult.Yes)
+            {
+                return;
+            }
+
             var currentPid = (uint)Process.GetCurrentProcess().Id;
             EnumWindows((hwnd, lParam) =>
             {
@@ -284,20 +353,18 @@ namespace ALTRun.Services
         public static bool HideWindow(IntPtr hwnd)
         {
             if (hwnd == IntPtr.Zero || !IsWindow(hwnd)) return false;
-            if (!_hiddenWindows.Contains(hwnd))
-            {
-                _hiddenWindows.Add(hwnd);
-            }
+            RememberHiddenWindow(hwnd);
             return ShowWindow(hwnd, SW_HIDE);
         }
 
         public static void UnhideWindows()
         {
-            foreach (var hwnd in _hiddenWindows)
+            foreach (var window in _hiddenWindows)
             {
-                if (IsWindow(hwnd))
+                // 句柄可能已被系统回收给别的窗口：只恢复"身份仍然一致"的窗口
+                if (IsSameWindow(window))
                 {
-                    ShowWindow(hwnd, SW_SHOWNORMAL);
+                    ShowWindow(window.Handle, SW_SHOWNORMAL);
                 }
             }
             _hiddenWindows.Clear();
@@ -322,7 +389,7 @@ namespace ALTRun.Services
                     if (cls == "Shell_TrayWnd" || cls == "Progman" || cls == "WorkerW")
                         return true;
 
-                    _hiddenWindows.Add(hwnd);
+                    _hiddenWindows.Add(DescribeWindow(hwnd));
                     ShowWindow(hwnd, SW_HIDE);
                 }
                 return true;
@@ -341,7 +408,7 @@ namespace ALTRun.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Sleep error: {ex.Message}");
+                AppLog.Write($"Sleep error: {ex.Message}");
             }
         }
 
@@ -351,7 +418,10 @@ namespace ALTRun.Services
             {
                 LockWorkStation();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] SystemController.cs:354 静默异常: {ex.Message}");
+            }
         }
 
         #endregion

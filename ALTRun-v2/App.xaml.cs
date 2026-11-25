@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Windows;
 using ALTRun.Services;
@@ -17,12 +17,18 @@ namespace ALTRun
         private static RegisteredWaitHandle? _registeredWait;
 
         public static ConfigManager Config { get; } = new();
-        private static System.Windows.Threading.DispatcherTimer? _idleTimer;
 
         private void Application_Startup(object sender, StartupEventArgs e)
         {
-            // 1. 启用纯软件渲染模式：彻底关闭 Direct3D 显卡渲染管线与驱动加载，大幅消减常驻内存
-            System.Windows.Media.RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
+            // 渲染模式交由 WPF 默认（硬件加速）：保留 ClearType 字体与流畅动画。
+            // 不再强制 SoftwareOnly——强制软件渲染会让字体失去 ClearType、动画掉帧，
+            // 与主题切换的淡入淡出效果冲突，且实测"极速呼出"并无收益。
+
+            AppLog.Write($"===== ALTRun 启动 v{typeof(App).Assembly.GetName().Version} ({(e.Args?.Length > 0 ? string.Join(" ", e.Args) : "无参数")}) =====");
+
+            // 非 UI 线程的未处理异常（如后台任务）同样落盘，便于事后排查
+            AppDomain.CurrentDomain.UnhandledException += (s, args) =>
+                AppLog.Write("AppDomain 未处理异常", args.ExceptionObject as Exception);
 
             DispatcherUnhandledException += (s, args) =>
             {
@@ -32,11 +38,15 @@ namespace ALTRun
                      args.Exception.StackTrace?.Contains("GetDesignGlyphMetrics") == true ||
                      args.Exception.StackTrace?.Contains("GlyphTypeface") == true))
                 {
+                    AppLog.Write("已忽略字体度量异常", args.Exception);
                     args.Handled = true;
                     return;
                 }
 
-                System.Windows.MessageBox.Show($"程序发生异常: {args.Exception?.Message}\n{args.Exception?.StackTrace}", "ALTRun 提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                AppLog.Write("UI 线程未处理异常", args.Exception);
+                System.Windows.MessageBox.Show(
+                    string.Format(AppStrings.CrashMessageFormat, args.Exception?.Message, args.Exception?.StackTrace),
+                    AppStrings.TipTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
                 args.Handled = true;
             };
 
@@ -72,12 +82,16 @@ namespace ALTRun
                             existingEvent.Dispose();
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        AppLog.Write($"[ALTRun] App.xaml.cs:75 静默异常: {ex.Message}");
+                    }
                 }
 
                 // 当前实例并未拥有互斥体所有权，绝不调用 ReleaseMutex，直接释放句柄并退出
                 _mutex.Dispose();
                 _mutex = null;
+                AppLog.Write("检测到已有实例，本次启动已退出并唤醒现有实例");
                 Shutdown();
                 return;
             }
@@ -102,10 +116,31 @@ namespace ALTRun
                     }
                 }, null, -1, false);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] App.xaml.cs:105 静默异常: {ex.Message}");
+            }
 
             // 加载配置
             Config.Load();
+
+            // 配置损坏时已自动备份原文件，这里明确告知用户备份位置：避免"我的快捷方式莫名全没了"的误解，
+            // 也给出恢复路径。开机静默启动时不打扰用户（备份文件就在程序目录，随时可取）。
+            if (Config.CorruptConfigBackupPath != null && !isSilentStartup)
+            {
+                try
+                {
+                    System.Windows.MessageBox.Show(
+                        string.Format(AppStrings.ConfigCorruptMessageFormat, Config.CorruptConfigBackupPath),
+                        AppStrings.ConfigCorruptTitle,
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                }
+                catch (Exception ex)
+                {
+                    AppLog.Write($"[ALTRun] App.xaml.cs:119 提示配置备份失败: {ex.Message}");
+                }
+            }
 
             // 启动主搜索窗（静默常驻右下角托盘，不弹窗打扰用户，极速待命）
             var mainWindow = new MainWindow();
@@ -119,15 +154,21 @@ namespace ALTRun
                 wizard.ShowDialog();
             }
 
-            // 启动轻量后台空闲内存维护定时器（托盘后台休眠时维持极小物理内存常驻）
-            StartIdleMemoryMaintenance();
-
             // 后台静默检测 GitHub Releases 更新（延迟 10 秒启动，完全不影响开机极速响应）
             CheckUpdateInBackground();
         }
 
         private static void CheckUpdateInBackground()
         {
+            // 每月 1 号检查一次更新，避免每次启动都请求 GitHub API（原为每次启动都检查）。
+            // 用配置里的 LastUpdateCheckMonth（yyyy-MM）记录已检查月份，同一天多次启动不会重复请求；
+            // 若 1 号当天未开机，则本月跳过、次月 1 号再检查。
+            var now = DateTime.Now;
+            if (now.Day != 1) return;
+
+            string thisMonth = now.ToString("yyyy-MM");
+            if (string.Equals(Config.Settings.LastUpdateCheckMonth, thisMonth, StringComparison.Ordinal)) return;
+
             Task.Run(async () =>
             {
                 await Task.Delay(10000);
@@ -138,47 +179,30 @@ namespace ALTRun
                     {
                         Current?.Dispatcher?.Invoke(() =>
                         {
-                            string msg = $"🎉 ALTRun 检测到新版本发布！\n\n" +
-                                         $"当前版本: {info.CurrentVersion}\n" +
-                                         $"最新版本: {info.LatestVersion}\n\n" +
-                                         $"是否立即前往 GitHub 查看更新日志并下载安装？";
+                            string msg = string.Format(AppStrings.UpdateNewVersionBodyFormat, info.CurrentVersion, info.LatestVersion);
 
-                            if (System.Windows.MessageBox.Show(msg, "ALTRun 发现新版本", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+                            if (System.Windows.MessageBox.Show(msg, AppStrings.UpdateTitleNewVersion, MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
                             {
                                 UpdateCheckerService.OpenUrl(info.ReleaseUrl);
                             }
                         });
                     }
                 }
-                catch { }
-            });
-        }
-
-        private void StartIdleMemoryMaintenance()
-        {
-            _idleTimer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.SystemIdle)
-            {
-                Interval = TimeSpan.FromSeconds(30)
-            };
-            _idleTimer.Tick += (s, e) =>
-            {
-                // 仅当主窗口隐藏、且没有其他打开的窗口时（即完全静默常驻托盘时），主动修剪工作集
-                bool anyVisible = false;
-                foreach (Window win in Windows)
+                catch (Exception ex)
                 {
-                    if (win.IsVisible)
+                    AppLog.Write($"[ALTRun] App.xaml.cs:159 静默异常: {ex.Message}");
+                }
+                finally
+                {
+                    // 无论是否有更新、网络是否可用，都标记本月已检查，避免 1 号当天反复启动反复请求。
+                    // 用 MarkDirty 延迟合并写盘，不阻塞后台线程。
+                    Current?.Dispatcher?.Invoke(() =>
                     {
-                        anyVisible = true;
-                        break;
-                    }
+                        Config.Settings.LastUpdateCheckMonth = thisMonth;
+                        Config.MarkDirty();
+                    });
                 }
-
-                if (!anyVisible)
-                {
-                    MemoryOptimizer.TrimMemory();
-                }
-            };
-            _idleTimer.Start();
+            });
         }
 
         public static void OpenManageWindow(Models.ShortCutItem? itemToEdit = null, bool addNew = false)
@@ -206,12 +230,29 @@ namespace ALTRun
 
         private void Application_Exit(object sender, ExitEventArgs e)
         {
+            // 兜底释放托盘图标与全局热键：Shutdown 强关窗口时不一定走 OnClosed，
+            // 不释放会残留"僵尸"托盘图标（鼠标划过才消失）。
+            try
+            {
+                (this.MainWindow as MainWindow)?.ReleaseSystemResources();
+            }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] App.xaml.cs:208 释放系统资源失败: {ex.Message}");
+            }
+
+            // 确保延迟保存的频次改动在退出前落盘
+            Config.FlushPendingSave();
+
             try
             {
                 _registeredWait?.Unregister(null);
                 _wakeEvent?.Dispose();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] App.xaml.cs:206 静默异常: {ex.Message}");
+            }
 
             if (_ownsMutex && _mutex != null)
             {
@@ -219,10 +260,15 @@ namespace ALTRun
                 {
                     _mutex.ReleaseMutex();
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    AppLog.Write($"[ALTRun] App.xaml.cs:214 静默异常: {ex.Message}");
+                }
                 _mutex.Dispose();
                 _mutex = null;
             }
+
+            AppLog.Write("===== ALTRun 退出 =====");
         }
     }
 }

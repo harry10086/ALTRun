@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
+using System.Globalization;
 using System.Linq;
 using ALTRun.Models;
 
@@ -15,8 +15,6 @@ namespace ALTRun.Services
 
     public class SearchEngine
     {
-        private static readonly DataTable EvalTable = new();
-
         public static SearchResult Search(string rawInput, List<ShortCutItem> allItems)
         {
             var result = new SearchResult { RawQuery = rawInput };
@@ -26,7 +24,7 @@ namespace ALTRun.Services
                 var topList = allItems
                     .OrderByDescending(x => x.Freq)
                     .Take(10)
-                    .Select(x => x.Clone())
+                    .Select(x => x.CopyForDisplay())
                     .ToList();
 
                 AssignDisplayIndex(topList);
@@ -91,7 +89,7 @@ namespace ALTRun.Services
                 int score = CalculateMatchScore(item, lowerKeyword);
                 if (score > 0)
                 {
-                    var copy = item.Clone();
+                    var copy = item.CopyForDisplay();
                     copy.MatchScore = score;
                     matchedList.Add(copy);
                 }
@@ -117,10 +115,16 @@ namespace ALTRun.Services
 
         private static int CalculateMatchScore(ShortCutItem item, string lowerKeyword)
         {
-            string lowerShortcut = item.ShortCut.ToLowerInvariant();
-            string lowerName = item.Name.ToLowerInvariant();
-            string pinyinName = item.PinyinInitials.ToLowerInvariant();
-            string pinyinShortcut = item.PinyinShortcut.ToLowerInvariant();
+            // 优先使用预计算缓存；临时构造项（计算器/终端命令）缓存为空时实时计算兜底。
+            // 配置被手工编辑成 "ShortCut": null 时旧写法的 ToLowerInvariant() 会抛空引用，因此统一用 ?? "" 兜底。
+            string lowerShortcut = string.IsNullOrEmpty(item.LowerShortCut)
+                ? (item.ShortCut ?? "").ToLowerInvariant() : item.LowerShortCut;
+            string lowerName = string.IsNullOrEmpty(item.LowerName)
+                ? (item.Name ?? "").ToLowerInvariant() : item.LowerName;
+            string pinyinName = string.IsNullOrEmpty(item.LowerPinyinInitials)
+                ? (item.PinyinInitials ?? "").ToLowerInvariant() : item.LowerPinyinInitials;
+            string pinyinShortcut = string.IsNullOrEmpty(item.LowerPinyinShortcut)
+                ? (item.PinyinShortcut ?? "").ToLowerInvariant() : item.LowerPinyinShortcut;
 
             int baseScore = 0;
 
@@ -219,19 +223,159 @@ namespace ALTRun.Services
 
         private static string? TryEvaluateMath(string expr)
         {
-            try
+            // 手写递归下降解析器，零 System.Data 依赖，避免 DataTable.Compute 的表达式注入风险。
+            return MathExpressionEvaluator.TryEvaluate(expr, out double value)
+                ? value.ToString("G", CultureInfo.InvariantCulture)
+                : null;
+        }
+
+        /// <summary>
+        /// 轻量四则运算求值器：支持 + - * / %、括号、一元正负号与小数。
+        /// 递归下降文法：expr := term {('+'|'-') term}；term := factor {('*'|'/'|'%') factor}；
+        /// factor := ('+'|'-')? primary；primary := number | '(' expr ')'。
+        /// </summary>
+        private class MathExpressionEvaluator
+        {
+            /// <summary>递归深度上限。正常算式远达不到；纯粹用于阻挡 "(((..." / "----..." 这类恶意的超深嵌套。</summary>
+            private const int MaxNestingDepth = 64;
+
+            private readonly string _text;
+            private int _pos;
+            private int _depth;
+
+            private MathExpressionEvaluator(string text) => _text = text;
+
+            public static bool TryEvaluate(string expression, out double result)
             {
-                var val = EvalTable.Compute(expr, null);
-                if (val != null)
+                result = 0;
+                if (string.IsNullOrWhiteSpace(expression)) return false;
+                try
                 {
-                    return Convert.ToDouble(val).ToString("G");
+                    var parser = new MathExpressionEvaluator(expression);
+                    double value = parser.ParseExpr();
+                    parser.SkipWhiteSpace();
+                    // 必须消耗完整输入，否则视为非法表达式（如 "1+2abc"）
+                    if (parser._pos != parser._text.Length) return false;
+                    if (double.IsNaN(value) || double.IsInfinity(value)) return false;
+                    result = value;
+                    return true;
+                }
+                catch
+                {
+                    return false;
                 }
             }
-            catch
+
+            /// <summary>
+            /// 进入一层递归。超过 MaxNestingDepth 立即抛出 FormatException——
+            /// 递归下降解析器的栈帧无法通过 try/catch 从 StackOverflow 恢复（后者会直接终止进程），
+            /// 因此必须在耗尽栈之前主动中断。
+            /// </summary>
+            private void EnterRecursion()
             {
-                // 忽略非合法数学式
+                if (++_depth > MaxNestingDepth)
+                {
+                    _depth--;
+                    throw new FormatException("表达式嵌套层级过深");
+                }
             }
-            return null;
+
+            private void SkipWhiteSpace()
+            {
+                while (_pos < _text.Length && char.IsWhiteSpace(_text[_pos])) _pos++;
+            }
+
+            private bool TryConsume(char c)
+            {
+                SkipWhiteSpace();
+                if (_pos < _text.Length && _text[_pos] == c) { _pos++; return true; }
+                return false;
+            }
+
+            // expr := term {('+'|'-') term}
+            private double ParseExpr()
+            {
+                EnterRecursion();
+                try
+                {
+                    double left = ParseTerm();
+                    while (true)
+                    {
+                        SkipWhiteSpace();
+                        if (_pos >= _text.Length) break;
+                        char op = _text[_pos];
+                        if (op != '+' && op != '-') break;
+                        _pos++;
+                        double right = ParseTerm();
+                        left = op == '+' ? left + right : left - right;
+                    }
+                    return left;
+                }
+                finally
+                {
+                    _depth--;
+                }
+            }
+
+            // term := factor {('*'|'/'|'%') factor}
+            private double ParseTerm()
+            {
+                double left = ParseFactor();
+                while (true)
+                {
+                    SkipWhiteSpace();
+                    if (_pos >= _text.Length) break;
+                    char op = _text[_pos];
+                    if (op != '*' && op != '/' && op != '%') break;
+                    _pos++;
+                    double right = ParseFactor();
+                    if ((op == '/' || op == '%') && right == 0)
+                        throw new DivideByZeroException();
+                    left = op switch
+                    {
+                        '*' => left * right,
+                        '/' => left / right,
+                        _ => left % right
+                    };
+                }
+                return left;
+            }
+
+            // factor := ('+'|'-')? primary
+            private double ParseFactor()
+            {
+                EnterRecursion();
+                try
+                {
+                    if (TryConsume('+')) return ParseFactor();
+                    if (TryConsume('-')) return -ParseFactor();
+                    return ParsePrimary();
+                }
+                finally
+                {
+                    _depth--;
+                }
+            }
+
+            // primary := number | '(' expr ')'
+            private double ParsePrimary()
+            {
+                SkipWhiteSpace();
+                if (TryConsume('('))
+                {
+                    double value = ParseExpr();
+                    if (!TryConsume(')')) throw new FormatException("缺少右括号");
+                    return value;
+                }
+
+                int start = _pos;
+                while (_pos < _text.Length && (char.IsDigit(_text[_pos]) || _text[_pos] == '.')) _pos++;
+                if (start == _pos) throw new FormatException("缺少操作数");
+                string number = _text.Substring(start, _pos - start);
+                if (!double.TryParse(number, NumberStyles.Float, CultureInfo.InvariantCulture, out double result))
+                    throw new FormatException("非法数字");
+                return result;
+            }
         }
 
         private static void AssignDisplayIndex(List<ShortCutItem> items)

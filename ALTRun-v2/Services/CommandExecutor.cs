@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
@@ -162,8 +162,8 @@ namespace ALTRun.Services
                     return true;
                 }
 
-                errorMessage = "未找到该文件，请检查";
-                Debug.WriteLine($"Failed to execute: {targetCmd}, error: {ex.Message}");
+                errorMessage = AppStrings.FileNotFound;
+                AppLog.Write($"Failed to execute: {targetCmd}, error: {ex.Message}");
                 return false;
             }
         }

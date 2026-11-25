@@ -117,7 +117,8 @@ namespace ALTRun.Services
             }
             catch (Exception ex)
             {
-                WpfMessageBox.Show($"无法打开链接: {ex.Message}\n请手动访问: {url}", "ALTRun", MessageBoxButton.OK, MessageBoxImage.Warning);
+                AppLog.Write($"打开链接失败: {url}", ex);
+                WpfMessageBox.Show(string.Format(AppStrings.OpenLinkFailedFormat, ex.Message, url), AppStrings.AppName, MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
     }

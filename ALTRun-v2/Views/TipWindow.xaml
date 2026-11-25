@@ -1,0 +1,63 @@
+﻿<Window x:Class="ALTRun.Views.TipWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="clr-namespace:ALTRun.Services"
+        Title="{x:Static svc:AppStrings.TipTitle}"
+        Width="320"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        ShowInTaskbar="false"
+        Topmost="true"
+        WindowStartupLocation="Manual"
+        Background="{DynamicResource CardBgBrush}"
+        Foreground="{DynamicResource TextBrush}">
+    <Window.Resources>
+        <!-- 提示窗专用的主按钮样式：跟随主题强调色，避免深色主题下出现系统默认灰底按钮 -->
+        <Style x:Key="TipButton" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="BtnBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BtnBorder" Property="Opacity" Value="0.88"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="BtnBorder" Property="Opacity" Value="0.72"/>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="BtnBorder" Property="BorderBrush" Value="{DynamicResource AccentTextBrush}"/>
+                                <Setter TargetName="BtnBorder" Property="BorderThickness" Value="1"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <StackPanel Margin="16">
+        <TextBlock x:Name="MessageText"
+                   FontSize="15"
+                   TextWrapping="Wrap"
+                   VerticalAlignment="Top"/>
+        <Button x:Name="OkButton"
+                Content="{x:Static svc:AppStrings.OkButton}"
+                Style="{StaticResource TipButton}"
+                Width="86"
+                Height="30"
+                IsDefault="true"
+                HorizontalAlignment="Right"
+                Margin="0,12,0,0"
+                Click="OkButton_Click"/>
+    </StackPanel>
+</Window>

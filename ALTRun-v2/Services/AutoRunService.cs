@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using Microsoft.Win32;
 
@@ -27,17 +27,27 @@ namespace ALTRun.Services
                 using var key = Registry.CurrentUser.OpenSubKey(RunRegistryKey, true);
                 if (key != null)
                 {
+                    string desiredValue = $"\"{exePath}\" --silent";
+                    string? currentValue = key.GetValue(AppName) as string;
+
                     if (enable)
                     {
-                        key.SetValue(AppName, $"\"{exePath}\" --silent");
+                        // 值没变就不写：避免每次开机启动都做一次无谓的注册表写入（也会引起杀软/系统提示）
+                        if (!string.Equals(currentValue, desiredValue, StringComparison.Ordinal))
+                        {
+                            key.SetValue(AppName, desiredValue);
+                        }
                     }
-                    else
+                    else if (currentValue != null)
                     {
                         key.DeleteValue(AppName, false);
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] AutoRunService.cs:40 静默异常: {ex.Message}");
+            }
 
             // 2. 清理历史遗留的 Windows 用户启动文件夹 (shell:startup) 快捷方式
             // 避免注册表与启动文件夹同时存在造成双重自启动冲突
@@ -49,28 +59,10 @@ namespace ALTRun.Services
                     File.Delete(shortcutPath);
                 }
             }
-            catch { }
-        }
-
-        private static void CreateOrUpdateShortcut(string shortcutPath, string targetPath)
-        {
-            try
+            catch (Exception ex)
             {
-                Type? shellType = Type.GetTypeFromProgID("WScript.Shell");
-                if (shellType != null)
-                {
-                    dynamic? shell = Activator.CreateInstance(shellType);
-                    if (shell != null)
-                    {
-                        dynamic shortcut = shell.CreateShortcut(shortcutPath);
-                        shortcut.TargetPath = targetPath;
-                        shortcut.WorkingDirectory = Path.GetDirectoryName(targetPath);
-                        shortcut.Description = "ALTRun 极速启动利器";
-                        shortcut.Save();
-                    }
-                }
+                AppLog.Write($"[ALTRun] AutoRunService.cs:52 静默异常: {ex.Message}");
             }
-            catch { }
         }
 
         public static bool CheckStatus()

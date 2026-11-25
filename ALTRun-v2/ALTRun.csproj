@@ -6,10 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <!-- WPF + WinForms 混合项目：WFAC010 是 WinForms 分析器对 manifest 中 DPI 声明的误报，WPF 的 PerMonitorV2 必须保留在 manifest 中 -->
-    <NoWarn>$(NoWarn);WFAC010;WFO0003</NoWarn>
     <ApplicationIcon>ALTRun.ico</ApplicationIcon>
     <Version>2.0.8</Version>
     <AssemblyVersion>2.0.8.0</AssemblyVersion>
@@ -20,11 +17,24 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
+    <!-- GC/编译配置：ServerGC 与 RetainVM 保持关闭以省内存；
+         后台 GC / 分层编译 / 分层 PGO 恢复默认开启——避免 UI 卡顿、加快启动，内存代价极小。
+         GCConserveMemory(0-9)：牺牲少量 CPU 换更小的托管堆与更积极的归还，5 为平衡值；
+         刻意不关后台 GC——它只占一个线程几 MB，关掉反而会让 Gen2 回收阻塞 UI 线程。 -->
     <ServerGarbageCollection>false</ServerGarbageCollection>
-    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     <RetainVMGarbageCollection>false</RetainVMGarbageCollection>
-    <TieredCompilation>false</TieredCompilation>
-    <TieredPGO>false</TieredPGO>
+    <TieredCompilation>true</TieredCompilation>
+    <TieredPGO>true</TieredPGO>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 主题数据文件随程序一起发布，用户可直接编辑 Themes/themes.json 改配色，无需重新编译 -->
+    <None Update="Themes\themes.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- GC 内存紧缩模式（0-9，越大越省）：让 GC 更积极地归还空闲区段并收紧堆上限。
+         用显式 RuntimeHostConfigurationOption 而不是 MSBuild 属性 GCConserveMemory，
+         后者在本机 SDK 下未写入 runtimeconfig.json，实测无效。 -->
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+  </ItemGroup>
 
 </Project>

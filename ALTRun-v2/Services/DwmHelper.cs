@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
@@ -29,7 +29,10 @@ namespace ALTRun.Services
                 int cornerVal = DWMWCP_ROUND;
                 DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerVal, sizeof(int));
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] DwmHelper.cs:32 静默异常: {ex.Message}");
+            }
 
             // 2. 开启沉浸式深色模式
             try
@@ -37,7 +40,10 @@ namespace ALTRun.Services
                 int darkVal = isDarkMode ? 1 : 0;
                 DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref darkVal, sizeof(int));
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] DwmHelper.cs:40 静默异常: {ex.Message}");
+            }
         }
     }
 }

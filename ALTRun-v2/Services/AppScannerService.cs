@@ -311,8 +311,9 @@ namespace ALTRun.Services
             string lower = fullPath.ToLowerInvariant();
 
             // 1. Windows 系统核心目录 (C:\Windows\System32, SysWOW64 等) - 这些是系统管理与底层调试工具，不是用户已安装的第三方应用
+            // 注意：winDir 取不到时会是空串，而 StartsWith("") 恒为 true，会把所有项都判成黑名单（扫描结果为空）。
             string winDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows).ToLowerInvariant();
-            if (lower.StartsWith(winDir)) return true;
+            if (!string.IsNullOrEmpty(winDir) && lower.StartsWith(winDir)) return true;
 
             // 2. Windows 管理工具与内置系统组件快捷方式源目录
             if (lower.Contains(@"windows 管理工具") || lower.Contains(@"windows administrative tools") ||

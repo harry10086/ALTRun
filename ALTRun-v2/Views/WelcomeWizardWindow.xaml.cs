@@ -35,7 +35,7 @@ namespace ALTRun.Views
                 var existing = App.Config.Settings.ShortCuts.ToList();
                 var scanned = AppScannerService.ScanInstalledApps(existing);
 
-                var existingPaths = new HashSet<string>(existing.Select(x => x.CommandLine.Trim().Trim('\"')), StringComparer.OrdinalIgnoreCase);
+                var existingPaths = new HashSet<string>(existing.Select(x => (x.CommandLine ?? "").Trim().Trim('\"')), StringComparer.OrdinalIgnoreCase);
 
                 foreach (var item in scanned)
                 {
@@ -44,7 +44,7 @@ namespace ALTRun.Views
                     var newItem = new ShortCutItem
                     {
                         Name = item.Name,
-                        ShortCut = item.ShortCut.ToLowerInvariant(),
+                        ShortCut = (item.ShortCut ?? "").ToLowerInvariant(),
                         CommandLine = item.TargetPath,
                         WorkingDir = string.IsNullOrWhiteSpace(item.WorkingDir) ? Path.GetDirectoryName(item.TargetPath) ?? "" : item.WorkingDir,
                         Freq = 0
@@ -62,7 +62,7 @@ namespace ALTRun.Views
 
             PnlScanning.Visibility = Visibility.Collapsed;
 
-            WpfMessageBox.Show($"初始化导入完成！已成功收录 {count} 个软件快捷方式。\n按下 Alt+R 唤醒 ALTRun 即可开始体验！", "ALTRun 准备就绪", MessageBoxButton.OK, MessageBoxImage.Information);
+            WpfMessageBox.Show(string.Format(AppStrings.WizardImportSuccessFormat, count) + AppStrings.WizardReadySuffix, AppStrings.WizardReadyTitle, MessageBoxButton.OK, MessageBoxImage.Information);
 
             SafeClose(true);
         }

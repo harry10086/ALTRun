@@ -1,6 +1,7 @@
-<Window x:Class="ALTRun.Views.MainWindow"
+﻿<Window x:Class="ALTRun.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="clr-namespace:ALTRun.Services"
         Title="ALTRun"
         Width="660"
         Height="460"
@@ -137,6 +138,7 @@
                          Grid.Column="1"
                          FontSize="19"
                          FontWeight="SemiBold"
+                         MaxLength="256"
                          Foreground="{DynamicResource TextBrush}"
                          CaretBrush="{DynamicResource AccentBrush}"
                          Background="Transparent"
@@ -159,7 +161,7 @@
                 <!-- 占位符文字 -->
                 <TextBlock x:Name="PlaceholderText"
                            Grid.Column="1"
-                           Text="输入快捷键 / 拼音首字母 / >命令 / =算式..."
+                           Text="{x:Static svc:AppStrings.SearchPlaceholder}"
                            FontSize="16"
                            Foreground="{DynamicResource TextMutedBrush}"
                            VerticalAlignment="Center"
@@ -170,7 +172,7 @@
                         x:Name="BtnTheme"
                         Style="{StaticResource TopIconButton}"
                         Margin="0,0,4,0"
-                        ToolTip="选择外观主题风格"
+                        ToolTip="{x:Static svc:AppStrings.TooltipThemeMenu}"
                         Click="BtnTheme_Click">
                     <Path Data="M12,3A9,9 0 0,0 3,12A9,9 0 0,0 12,21C13.4,21 14.5,19.9 14.5,18.5C14.5,17.8 14.2,17.2 13.8,16.8C13.4,16.4 13.1,15.8 13.1,15.2C13.1,14 14.1,13 15.3,13H17C19.2,13 21,11.2 21,9C21,5.7 17,3 12,3M6,12C5.4,12 5,11.6 5,11C5,10.4 5.4,10 6,10C6.6,10 7,10.4 7,11C7,11.6 6.6,12 6,12M9,8C8.4,8 8,7.6 8,7C8,6.4 8.4,6 9,6C9.6,6 10,6.4 10,7C10,7.6 9.6,8 9,8M15,8C14.4,8 14,7.6 14,7C14,6.4 14.4,6 15,6C15.6,6 16,6.4 16,7C16,7.6 15.6,8 15,8M18,12C17.4,12 17,11.6 17,11C17,10.4 17.4,10 18,10C18.6,10 19,10.4 19,11C19,11.6 18.6,12 18,12Z"
                           Stroke="{DynamicResource TextMutedBrush}"
@@ -186,7 +188,7 @@
                 <!-- 管理按钮 (线条镂空齿轮) -->
                 <Button Grid.Column="3"
                         Style="{StaticResource TopIconButton}"
-                        ToolTip="快捷方式管理"
+                        ToolTip="{x:Static svc:AppStrings.TooltipManage}"
                         Click="BtnManage_Click">
                     <Path Data="M12,15A3,3 0 0,1 9,12A3,3 0 0,1 12,9A3,3 0 0,1 15,12A3,3 0 0,1 12,15M19.4,13C19.4,12.7 19.5,12.3 19.5,12C19.5,11.7 19.4,11.3 19.4,11L21.5,9.4C21.7,9.2 21.8,9 21.6,8.7L19.6,5.3C19.5,5.1 19.2,5 19,5.1L16.5,6.1C16,5.7 15.5,5.4 14.9,5.1L14.5,2.4C14.5,2.2 14.3,2 14,2H10C9.7,2 9.5,2.2 9.5,2.4L9.1,5.1C8.5,5.3 8,5.7 7.5,6.1L5,5.1C4.8,5 4.5,5.1 4.4,5.3L2.4,8.7C2.2,9 2.3,9.2 2.5,9.4L4.6,11C4.6,11.3 4.5,11.7 4.5,12C4.5,12.3 4.6,12.7 4.6,13L2.5,14.6C2.3,14.8 2.2,15 2.4,15.3L4.4,18.7C4.5,18.9 4.8,19 5,18.9L7.5,17.9C8,18.3 8.5,18.7 9.1,18.9L9.5,21.6C9.5,21.8 9.7,22 10,22H14C14.3,22 14.5,21.8 14.5,21.6L14.9,18.9C15.5,18.7 16,18.3 16.5,17.9L19,18.9C19.2,19 19.5,18.9 19.6,18.7L21.6,15.3C21.7,15 21.7,14.8 21.5,14.6L19.4,13Z"
                           Stroke="{DynamicResource TextMutedBrush}"
@@ -301,12 +303,12 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="↵ / 单击 启动" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
-                        <TextBlock Text="Ctrl+↵ 提权运行" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
-                        <TextBlock Text="0~9 键直达" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
-                        <TextBlock Text="Tab 补全" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
-                        <TextBlock Text="Ctrl+D / 右键 目录" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
-                        <TextBlock Text="Esc 隐藏" FontSize="12" Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Text="{x:Static svc:AppStrings.HintRun}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
+                        <TextBlock Text="{x:Static svc:AppStrings.HintRunAsAdmin}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
+                        <TextBlock Text="{x:Static svc:AppStrings.HintNumberKey}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
+                        <TextBlock Text="{x:Static svc:AppStrings.HintTabComplete}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
+                        <TextBlock Text="{x:Static svc:AppStrings.HintContextMenuDir}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,14,0"/>
+                        <TextBlock Text="{x:Static svc:AppStrings.HintEscHide}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}"/>
                     </StackPanel>
 
                     <ResizeGrip Grid.Column="1" VerticalAlignment="Bottom" HorizontalAlignment="Right" Opacity="0.45" Cursor="SizeNWSE"/>

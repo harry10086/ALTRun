@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -23,15 +23,25 @@ namespace ALTRun.Views
         private TrayIconService? _trayIconService;
         private SearchResult _currentResult = new();
 
+        // 搜索防抖：30ms 内的连续输入合并为一次搜索，避免每个字符都全量遍历并重建列表
+        private readonly System.Windows.Threading.DispatcherTimer _searchDebounceTimer = new()
+        {
+            Interval = TimeSpan.FromMilliseconds(30)
+        };
+
         private bool _isSystemIntegrationInitialized = false;
 
         // 文件未找到提示窗：非模态、位于主界面上层，且打开期间不触发“失焦隐藏”
         private Window? _missingFileTip;
         private bool _suppressHideOnDeactivate;
 
+        // 隐藏窗口时会清空搜索框，这属于内部清场而不是用户输入，不应再触发一次搜索
+        private bool _suspendSearch;
+
         public MainWindow()
         {
             InitializeComponent();
+            _searchDebounceTimer.Tick += (_, _) => PerformSearch();
             ApplySavedWindowSize();
             ApplyTheme(ThemeManager.GetTheme(App.Config.Settings.Theme, App.Config.Settings.DarkMode));
             SourceInitialized += (s, e) => InitializeSystemIntegration();
@@ -50,6 +60,9 @@ namespace ALTRun.Views
                 e.Cancel = true;
                 HideWindow();
             };
+
+            // 托盘常驻：窗口完全隐藏满 10 秒后裁剪工作集，把闲置页交还系统
+            MemoryTrimmer.Start(this);
         }
 
         private void ApplySavedWindowSize()
@@ -78,149 +91,10 @@ namespace ALTRun.Views
             }
         }
 
-        public void InitializeBackgroundTray()
-        {
-            var helper = new WindowInteropHelper(this);
-            helper.EnsureHandle();
-            InitializeSystemIntegration();
-            MemoryOptimizer.TrimMemoryAsync(1000);
-        }
-
-        private void InitializeSystemIntegration()
-        {
-            if (_isSystemIntegrationInitialized) return;
-            _isSystemIntegrationInitialized = true;
-
-            var helper = new WindowInteropHelper(this);
-            var hwnd = helper.Handle;
-            if (hwnd == IntPtr.Zero) return;
-
-            // 1. 应用 DWM 原生圆角与沉浸式暗色模式特性
-            try
-            {
-                var currentTheme = ThemeManager.GetTheme(App.Config.Settings.Theme, App.Config.Settings.DarkMode);
-                DwmHelper.ApplyModernWindowStyles(this, currentTheme.IsDark);
-            }
-            catch { }
-
-            // 2. 初始化系统托盘服务
-            try
-            {
-                string hotKeyStr = App.Config.Settings.HotKey;
-                _trayIconService = new TrayIconService();
-                _trayIconService.LeftClicked += ShowAndActivate;
-                _trayIconService.RightClicked += ShowTrayContextMenu;
-                _trayIconService.Initialize(hwnd, $"ALTRun v2.0 - 快速启动 ({hotKeyStr})");
-
-                var source = HwndSource.FromHwnd(hwnd);
-                source?.AddHook(WndProc);
-            }
-            catch { }
-
-            // 2. 注册全局热键 (从配置读取)
-            RegisterConfiguredHotKey(hwnd);
-
-            // 3. 校验并同步开机自启动设置 (启动文件夹与注册表双重保障)
-            try
-            {
-                if (App.Config.Settings.AutoRun)
-                {
-                    AutoRunService.ApplyAutoRun(true);
-                }
-            }
-            catch { }
-        }
-
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             InitializeSystemIntegration();
             PerformSearch();
-        }
-
-        private void RegisterConfiguredHotKey(IntPtr hwnd)
-        {
-            try
-            {
-                _globalHotKey = new GlobalHotKey();
-                _globalHotKey.HotKeyPressed += ShowAndActivate;
-
-                var (modifiers, key) = ParseHotKey(App.Config.Settings.HotKey);
-                bool success = _globalHotKey.Register(hwnd, modifiers, key);
-                if (!success && (modifiers != KeyModifiers.Alt || key != Key.R))
-                {
-                    _globalHotKey.Register(hwnd, KeyModifiers.Alt, Key.R);
-                }
-            }
-            catch { }
-        }
-
-        public bool UpdateHotKey(KeyModifiers modifiers, Key key)
-        {
-            var helper = new WindowInteropHelper(this);
-            var hwnd = helper.Handle;
-            if (hwnd == IntPtr.Zero) return false;
-
-            _globalHotKey ??= new GlobalHotKey();
-            _globalHotKey.HotKeyPressed -= ShowAndActivate;
-            _globalHotKey.HotKeyPressed += ShowAndActivate;
-
-            bool success = _globalHotKey.Register(hwnd, modifiers, key);
-            if (success)
-            {
-                string hotkeyText = FormatHotKeyText(modifiers, key);
-                App.Config.Settings.HotKey = hotkeyText;
-                App.Config.Save();
-
-                _trayIconService?.UpdateTooltip($"ALTRun v2.0 - 快速启动 ({hotkeyText})");
-            }
-            return success;
-        }
-
-        public static (KeyModifiers modifiers, Key key) ParseHotKey(string hotkeyStr)
-        {
-            KeyModifiers modifiers = KeyModifiers.None;
-            Key key = Key.R;
-
-            if (string.IsNullOrWhiteSpace(hotkeyStr))
-                return (KeyModifiers.Alt, Key.R);
-
-            var parts = hotkeyStr.Split(new[] { '+', ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            foreach (var part in parts)
-            {
-                string p = part.Trim();
-                if (p.Equals("Alt", StringComparison.OrdinalIgnoreCase))
-                    modifiers |= KeyModifiers.Alt;
-                else if (p.Equals("Ctrl", StringComparison.OrdinalIgnoreCase) || p.Equals("Control", StringComparison.OrdinalIgnoreCase))
-                    modifiers |= KeyModifiers.Control;
-                else if (p.Equals("Shift", StringComparison.OrdinalIgnoreCase))
-                    modifiers |= KeyModifiers.Shift;
-                else if (p.Equals("Win", StringComparison.OrdinalIgnoreCase) || p.Equals("Windows", StringComparison.OrdinalIgnoreCase))
-                    modifiers |= KeyModifiers.Windows;
-                else if (Enum.TryParse<Key>(p, true, out var k))
-                    key = k;
-                else if (p.Equals("Space", StringComparison.OrdinalIgnoreCase))
-                    key = Key.Space;
-            }
-
-            if (modifiers == KeyModifiers.None) modifiers = KeyModifiers.Alt;
-            return (modifiers, key);
-        }
-
-        public static string FormatHotKeyText(KeyModifiers modifiers, Key key)
-        {
-            var parts = new System.Collections.Generic.List<string>();
-            if ((modifiers & KeyModifiers.Control) != 0) parts.Add("Ctrl");
-            if ((modifiers & KeyModifiers.Alt) != 0) parts.Add("Alt");
-            if ((modifiers & KeyModifiers.Shift) != 0) parts.Add("Shift");
-            if ((modifiers & KeyModifiers.Windows) != 0) parts.Add("Win");
-            parts.Add(key == Key.Space ? "Space" : key.ToString());
-            return string.Join(" + ", parts);
-        }
-
-        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
-        {
-            _trayIconService?.ProcessWindowMessage(msg, wParam, lParam);
-            return IntPtr.Zero;
         }
 
         [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -241,280 +115,10 @@ namespace ALTRun.Views
                     SetForegroundWindow(hWnd);
                 }
             }
-            catch { }
-        }
-
-        private MenuItem CreateThemeMenuItem(ThemeDefinition th, string currentThemeId, double fontSize = 13.5)
-        {
-            var itemTh = new MenuItem
+            catch (Exception ex)
             {
-                IsChecked = th.Id.Equals(currentThemeId, StringComparison.OrdinalIgnoreCase),
-                FontSize = fontSize
-            };
-
-            var panel = new StackPanel
-            {
-                Orientation = System.Windows.Controls.Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-
-            // 原生矢量真实彩色圆点 (杜绝黑白 Emoji 与字体排版错位)
-            var circle = new System.Windows.Shapes.Ellipse
-            {
-                Width = 11,
-                Height = 11,
-                Fill = new SolidColorBrush(th.AccentColor),
-                Stroke = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0x88, 0x88, 0x88)),
-                StrokeThickness = 1,
-                Margin = new Thickness(0, 0, 8, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-
-            var tbName = new TextBlock
-            {
-                Text = th.Name,
-                FontWeight = FontWeights.Medium,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 6, 0)
-            };
-            tbName.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
-
-            var tbDesc = new TextBlock
-            {
-                Text = $"({th.Description})",
-                FontSize = fontSize - 1.5,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            tbDesc.SetResourceReference(TextBlock.ForegroundProperty, "TextMutedBrush");
-
-            panel.Children.Add(circle);
-            panel.Children.Add(tbName);
-            panel.Children.Add(tbDesc);
-
-            itemTh.Header = panel;
-            itemTh.Click += (s, ev) => SetTheme(th.Id);
-            return itemTh;
-        }
-
-        private void ShowTrayContextMenu()
-        {
-            Dispatcher.Invoke(() =>
-            {
-                var menu = new ContextMenu();
-
-                var itemShow = new MenuItem { Header = $"显示搜索框 ({App.Config.Settings.HotKey})" };
-                itemShow.Click += (s, e) => ShowAndActivate();
-                menu.Items.Add(itemShow);
-
-                var itemManage = new MenuItem { Header = "快捷方式管理..." };
-                itemManage.Click += (s, e) => App.OpenManageWindow();
-                menu.Items.Add(itemManage);
-
-                var itemScan = new MenuItem { Header = "扫描已安装软件..." };
-                itemScan.Click += (s, e) =>
-                {
-                    var scanWin = new ScanAppsWindow();
-                    scanWin.Show();
-                };
-                menu.Items.Add(itemScan);
-
-                menu.Items.Add(new Separator());
-
-                var themeMenu = new MenuItem { Header = "外观主题风格" };
-                string currentThemeId = App.Config.Settings.Theme;
-
-                var darkHeader = new MenuItem { Header = "── 🌙 暗色系列 ──", IsEnabled = false, FontSize = 12 };
-                themeMenu.Items.Add(darkHeader);
-                foreach (var th in ThemeManager.Themes.Where(t => t.IsDark))
-                {
-                    themeMenu.Items.Add(CreateThemeMenuItem(th, currentThemeId, 13.5));
-                }
-
-                themeMenu.Items.Add(new Separator());
-
-                var lightHeader = new MenuItem { Header = "── ☀️ 浅色系列 ──", IsEnabled = false, FontSize = 12 };
-                themeMenu.Items.Add(lightHeader);
-                foreach (var th in ThemeManager.Themes.Where(t => !t.IsDark))
-                {
-                    themeMenu.Items.Add(CreateThemeMenuItem(th, currentThemeId, 13.5));
-                }
-                menu.Items.Add(themeMenu);
-
-                var itemAutoRun = new MenuItem { Header = "开机自启动", IsChecked = App.Config.Settings.AutoRun };
-                itemAutoRun.Click += (s, e) => ToggleAutoRun(itemAutoRun);
-                menu.Items.Add(itemAutoRun);
-
-                var itemCheckUpdate = new MenuItem { Header = "检查更新..." };
-                itemCheckUpdate.Click += async (s, e) =>
-                {
-                    try
-                    {
-                        var info = await UpdateCheckerService.CheckForUpdatesAsync();
-                        if (info.HasUpdate)
-                        {
-                            string msg = $"🎉 发现新版本！\n\n当前版本: {info.CurrentVersion}\n最新版本: {info.LatestVersion}\n\n是否立即前往 GitHub 查看更新并下载？";
-                            if (MessageBox.Show(msg, "ALTRun 软件更新提示", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
-                            {
-                                UpdateCheckerService.OpenUrl(info.ReleaseUrl);
-                            }
-                        }
-                        else
-                        {
-                            string msg = $"ℹ️ ALTRun 当前已是最新版本 ({info.CurrentVersion})\n\nGitHub 开源库: {UpdateCheckerService.RepoUrl}\n\n是否打开 GitHub 仓库项目主页？";
-                            if (MessageBox.Show(msg, "ALTRun 版本与更新", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
-                            {
-                                UpdateCheckerService.OpenUrl(UpdateCheckerService.RepoUrl);
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"检查更新出错: {ex.Message}", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    }
-                };
-                menu.Items.Add(itemCheckUpdate);
-
-                menu.Items.Add(new Separator());
-
-                var itemExit = new MenuItem { Header = "退出 ALTRun" };
-                itemExit.Click += (s, e) => System.Windows.Application.Current.Shutdown();
-                menu.Items.Add(itemExit);
-
-                // 启用子菜单斜向平滑移动防抖保护 (解决鼠标斜切掠过相邻项时子菜单闪退的问题)
-                System.Windows.Threading.DispatcherTimer? themeCloseTimer = null;
-                System.Windows.Threading.DispatcherTimer? switchTimer = null;
-                MenuItem? pendingItem = null;
-
-                bool IsSubmenuMouseOver(MenuItem parent)
-                {
-                    foreach (var it in parent.Items)
-                    {
-                        if (it is MenuItem mi && (mi.IsMouseOver || mi.IsHighlighted))
-                            return true;
-                    }
-                    return false;
-                }
-
-                themeMenu.MouseEnter += (s, e) =>
-                {
-                    themeCloseTimer?.Stop();
-                    themeMenu.IsSubmenuOpen = true;
-                };
-
-                themeMenu.MouseLeave += (s, e) =>
-                {
-                    themeCloseTimer?.Stop();
-                    themeCloseTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
-                    themeCloseTimer.Tick += (ts, te) =>
-                    {
-                        themeCloseTimer.Stop();
-                        if (!themeMenu.IsMouseOver && !IsSubmenuMouseOver(themeMenu))
-                        {
-                            themeMenu.IsSubmenuOpen = false;
-                        }
-                    };
-                    themeCloseTimer.Start();
-                };
-
-                foreach (var obj in themeMenu.Items)
-                {
-                    if (obj is MenuItem mi)
-                    {
-                        mi.MouseEnter += (s, e) =>
-                        {
-                            themeCloseTimer?.Stop();
-                            themeMenu.IsSubmenuOpen = true;
-                        };
-                    }
-                }
-
-                foreach (var obj in menu.Items)
-                {
-                    if (obj is MenuItem item && item != themeMenu)
-                    {
-                        item.PreviewMouseMove += (s, e) =>
-                        {
-                            if (themeMenu.IsSubmenuOpen)
-                            {
-                                e.Handled = true;
-                                if (pendingItem != item)
-                                {
-                                    pendingItem = item;
-                                    switchTimer?.Stop();
-                                    switchTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
-                                    switchTimer.Tick += (ts, te) =>
-                                    {
-                                        switchTimer.Stop();
-                                        if (item.IsMouseOver)
-                                        {
-                                            themeMenu.IsSubmenuOpen = false;
-                                            item.Focus();
-                                        }
-                                    };
-                                    switchTimer.Start();
-                                }
-                            }
-                        };
-
-                        item.MouseLeave += (s, e) =>
-                        {
-                            if (pendingItem == item)
-                            {
-                                switchTimer?.Stop();
-                                pendingItem = null;
-                            }
-                        };
-                    }
-                }
-
-                menu.Closed += (s, e) =>
-                {
-                    themeCloseTimer?.Stop();
-                    switchTimer?.Stop();
-                };
-
-                var helper = new WindowInteropHelper(this);
-                SetForegroundWindow(helper.Handle);
-                menu.IsOpen = true;
-            });
-        }
-
-        private void ToggleAutoRun(MenuItem menuItem)
-        {
-            try
-            {
-                App.Config.Settings.AutoRun = !App.Config.Settings.AutoRun;
-                App.Config.Save();
-
-                AutoRunService.ApplyAutoRun(App.Config.Settings.AutoRun);
-
-                menuItem.IsChecked = App.Config.Settings.AutoRun;
+                AppLog.Write($"[ALTRun] MainWindow.xaml.cs:250 静默异常: {ex.Message}");
             }
-            catch { }
-        }
-
-        public void SetTheme(string themeId)
-        {
-            var theme = ThemeManager.GetTheme(themeId);
-            App.Config.Settings.Theme = theme.Id;
-            App.Config.Settings.DarkMode = theme.IsDark;
-            App.Config.Save();
-            ApplyTheme(theme);
-        }
-
-        public void ToggleTheme()
-        {
-            var allThemes = ThemeManager.Themes;
-            var current = ThemeManager.GetTheme(App.Config.Settings.Theme, App.Config.Settings.DarkMode);
-            int idx = allThemes.FindIndex(x => x.Id == current.Id);
-            int nextIdx = (idx + 1) % allThemes.Count;
-            SetTheme(allThemes[nextIdx].Id);
-        }
-
-        public void ApplyTheme(ThemeDefinition theme)
-        {
-            ThemeManager.ApplyTheme(this, theme);
-            ThemeManager.ApplyThemeToAll(theme);
         }
 
         public void ShowAndActivate()
@@ -547,671 +151,40 @@ namespace ALTRun.Views
         public void HideWindow()
         {
             SaveWindowSize();
-            SearchBox.Text = string.Empty;
+
+            // 提示窗以主窗口为 Owner：主窗口 Hide 时它会被连带隐藏，但不会触发 Closed，
+            // 于是 _missingFileTip 与 _suppressHideOnDeactivate 永远不复位——此后主界面再也不会失焦自动隐藏。
+            // 这里先显式关闭（Closed 处理器会复位状态），再兜底强制复位，保证状态一定干净。
+            if (_missingFileTip != null)
+            {
+                try
+                {
+                    _missingFileTip.Close();
+                }
+                catch (Exception ex)
+                {
+                    AppLog.Write($"[ALTRun] MainWindow.HideWindow 关闭提示窗失败: {ex.Message}");
+                }
+            }
+            _missingFileTip = null;
+            _suppressHideOnDeactivate = false;
+
+            _searchDebounceTimer.Stop();
+
+            // 清空输入会触发 SearchBox_TextChanged；用 _suspendSearch 抑制其重启防抖定时器，
+            // 否则隐藏之后还会再跑一次毫无意义的搜索。
+            _suspendSearch = true;
+            try
+            {
+                SearchBox.Text = string.Empty;
+            }
+            finally
+            {
+                _suspendSearch = false;
+            }
+
             ResetListScrollToTop();
             Hide();
-            MemoryOptimizer.TrimMemoryAsync(300);
-        }
-
-        private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            PlaceholderText.Visibility = string.IsNullOrEmpty(SearchBox.Text) ? Visibility.Visible : Visibility.Collapsed;
-            PerformSearch();
-        }
-
-        private void PerformSearch()
-        {
-            string query = SearchBox.Text;
-            _currentResult = SearchEngine.Search(query, App.Config.Settings.ShortCuts);
-
-            ResultListBox.ItemsSource = _currentResult.Items;
-            if (_currentResult.Items.Count > 0)
-            {
-                ResultListBox.SelectedIndex = 0;
-            }
-            ResetListScrollToTop();
-        }
-
-        private void ResetListScrollToTop()
-        {
-            try
-            {
-                if (_currentResult.Items.Count > 0 && ResultListBox.Items.Count > 0)
-                {
-                    ResultListBox.ScrollIntoView(_currentResult.Items[0]);
-                }
-                var scrollViewer = FindVisualChild<ScrollViewer>(ResultListBox);
-                scrollViewer?.ScrollToTop();
-
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    try
-                    {
-                        var sv = FindVisualChild<ScrollViewer>(ResultListBox);
-                        sv?.ScrollToTop();
-                        if (_currentResult.Items.Count > 0 && ResultListBox.Items.Count > 0)
-                        {
-                            ResultListBox.ScrollIntoView(_currentResult.Items[0]);
-                        }
-                    }
-                    catch { }
-                }), System.Windows.Threading.DispatcherPriority.Loaded);
-            }
-            catch { }
-        }
-
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Escape)
-            {
-                // 第一次 Esc：清空输入但保留界面；第二次（输入本来就是空的）Esc：隐藏界面
-                if (!string.IsNullOrEmpty(SearchBox.Text))
-                {
-                    SearchBox.Text = string.Empty;
-                    SearchBox.Focus();
-                    e.Handled = true;
-                    return;
-                }
-
-                HideWindow();
-                e.Handled = true;
-                return;
-            }
-
-            // 输入后按空格 = 执行当前选中项（Shift+Space 仍可输入普通空格）
-            if (e.Key == Key.Space &&
-                (Keyboard.Modifiers & ModifierKeys.Shift) != ModifierKeys.Shift &&
-                SearchBox.IsKeyboardFocused &&
-                SearchBox.SelectionLength == 0 &&
-                SearchBox.CaretIndex == SearchBox.Text.Length &&
-                !string.IsNullOrWhiteSpace(SearchBox.Text) &&
-                !SearchBox.Text.TrimStart().StartsWith(">") &&
-                !SearchBox.Text.TrimStart().StartsWith("=") &&
-                ResultListBox.SelectedItem is ShortCutItem)
-            {
-                bool runAsAdmin = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
-                ExecuteSelectedItem(runAsAdmin);
-                e.Handled = true;
-                return;
-            }
-
-            if (e.Key == Key.D && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
-            {
-                if (ResultListBox.SelectedItem is ShortCutItem selected)
-                {
-                    OpenItemDirectory(selected);
-                    e.Handled = true;
-                    return;
-                }
-            }
-
-            if (e.Key == Key.Tab)
-            {
-                if (ResultListBox.SelectedItem is ShortCutItem selected)
-                {
-                    SearchBox.Text = selected.ShortCut + " ";
-                    SearchBox.CaretIndex = SearchBox.Text.Length;
-                }
-                e.Handled = true;
-                return;
-            }
-
-            if (e.Key == Key.Down)
-            {
-                if (ResultListBox.SelectedIndex < ResultListBox.Items.Count - 1)
-                {
-                    ResultListBox.SelectedIndex++;
-                    ResultListBox.ScrollIntoView(ResultListBox.SelectedItem);
-                }
-                e.Handled = true;
-                return;
-            }
-            if (e.Key == Key.Up)
-            {
-                if (ResultListBox.SelectedIndex > 0)
-                {
-                    ResultListBox.SelectedIndex--;
-                    ResultListBox.ScrollIntoView(ResultListBox.SelectedItem);
-                }
-                e.Handled = true;
-                return;
-            }
-
-            if (e.Key == Key.Enter)
-            {
-                bool runAsAdmin = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
-                ExecuteSelectedItem(runAsAdmin);
-                e.Handled = true;
-                return;
-            }
-
-            // ── 数字键直达触发机制 (支持 1~9 以及 0 表示第 10 项) ──
-            Key actualKey = e.Key;
-            if (actualKey == Key.System) actualKey = e.SystemKey;
-            if (actualKey == Key.ImeProcessed) actualKey = e.ImeProcessedKey;
-
-            int digit = -1;
-            char digitChar = '\0';
-            if (actualKey >= Key.D1 && actualKey <= Key.D9)
-            {
-                digit = actualKey - Key.D1 + 1;
-                digitChar = (char)('0' + digit);
-            }
-            else if (actualKey == Key.D0)
-            {
-                digit = 10;
-                digitChar = '0';
-            }
-            else if (actualKey >= Key.NumPad1 && actualKey <= Key.NumPad9)
-            {
-                digit = actualKey - Key.NumPad1 + 1;
-                digitChar = (char)('0' + digit);
-            }
-            else if (actualKey == Key.NumPad0)
-            {
-                digit = 10;
-                digitChar = '0';
-            }
-
-            if (digit > 0)
-            {
-                bool hasAlt = (Keyboard.Modifiers & ModifierKeys.Alt) == ModifierKeys.Alt;
-                bool hasCtrl = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
-                bool hasShift = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
-
-                // 1. 显式修饰键直达: Alt + 数字 或 Ctrl + 数字 (最高优先级，100% 确认意图为选择序号)
-                if (hasAlt || (hasCtrl && !hasShift))
-                {
-                    int targetIndex = digit - 1;
-                    if (targetIndex >= 0 && targetIndex < _currentResult.Items.Count)
-                    {
-                        ResultListBox.SelectedIndex = targetIndex;
-                        bool runAsAdmin = hasCtrl;
-                        ExecuteSelectedItem(runAsAdmin);
-                        e.Handled = true;
-                        return;
-                    }
-                }
-
-                // 2. 单数字键智能判定:
-                // 如果输入的数字在快捷方式名称/快捷键中有匹配，则显示匹配项；若无任何匹配，则作为序号直达运行对应项
-                if (Keyboard.Modifiers == ModifierKeys.None)
-                {
-                    string currentText = SearchBox.SelectionLength == SearchBox.Text.Length ? string.Empty : SearchBox.Text;
-
-                    // 算式模式(=)和终端命令行模式(>)豁免，保证用户能正常输入数字算式与命令
-                    if (!currentText.StartsWith(">") && !currentText.StartsWith("="))
-                    {
-                        // 预测如果把当前数字追加到搜索词中
-                        string predictedQuery = currentText + digitChar;
-
-                        // 检索整个快捷方式库是否包含或匹配该数字组合 (如 12306, 1hshutdown, c2 等)
-                        var predictedResult = SearchEngine.Search(predictedQuery, App.Config.Settings.ShortCuts);
-
-                        // 如果有匹配的快捷方式: 放行输入到搜索框中展示匹配项
-                        if (predictedResult.Items.Count > 0)
-                        {
-                            return;
-                        }
-
-                        // 如果没有任何快捷方式匹配该数字组合: 100% 为序号直达操作
-                        int targetIndex = digit - 1;
-                        if (targetIndex >= 0 && targetIndex < _currentResult.Items.Count)
-                        {
-                            ResultListBox.SelectedIndex = targetIndex;
-                            ExecuteSelectedItem(false);
-                            e.Handled = true;
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// 鼠标滚轮：每格切换一个候选项。候选全部可见时列表本身不会滚动；
-        /// 候选超出可视区时 ScrollIntoView 会把新选中项滚入视野。
-        /// </summary>
-        private void Window_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
-        {
-            if (ResultListBox.Items.Count == 0) return;
-
-            int steps = Math.Max(1, Math.Abs(e.Delta) / 120);
-            if (e.Delta > 0) steps = -steps; // 向上滚动选中上一项
-
-            int current = ResultListBox.SelectedIndex;
-            int target = current < 0 ? 0 : Math.Min(ResultListBox.Items.Count - 1, Math.Max(0, current + steps));
-
-            if (current != target)
-            {
-                ResultListBox.SelectedIndex = target;
-                ResultListBox.ScrollIntoView(ResultListBox.SelectedItem);
-            }
-            e.Handled = true;
-        }
-
-        private void ExecuteSelectedItem(bool runAsAdmin)
-        {
-            if (ResultListBox.SelectedItem is ShortCutItem item)
-            {
-                string param = _currentResult.ExtractedParam;
-                bool success = CommandExecutor.Execute(item, param, runAsAdmin, out string? errorMessage);
-
-                if (success)
-                {
-                    App.Config.Save();
-                    HideWindow();
-                }
-                else if (!string.IsNullOrEmpty(errorMessage))
-                {
-                    ShowMissingFileTip(errorMessage);
-                }
-            }
-        }
-
-        /// <summary>
-        /// 显示“文件未找到”提示：非模态、置顶于主界面上层，在屏幕工作区内上下左右居中；
-        /// 高度随内容自适应，确保“确定”按钮完整显示；按钮默认聚焦，空格/Enter 均可关闭；
-        /// 打开期间抑制主界面的失焦自动隐藏。
-        /// </summary>
-        private void ShowMissingFileTip(string message)
-        {
-            // 已经有一个提示窗时只把它激活，不重复弹出
-            if (_missingFileTip != null && _missingFileTip.IsLoaded)
-            {
-                _missingFileTip.Activate();
-                return;
-            }
-
-            Rect area = SystemParameters.WorkArea;
-
-            var tip = new Window
-            {
-                Title = "ALTRun 提示",
-                Owner = this,
-                WindowStartupLocation = WindowStartupLocation.Manual,
-                Width = 320,
-                SizeToContent = SizeToContent.Height,
-                MaxHeight = area.Height - 40,
-                ResizeMode = ResizeMode.NoResize,
-                ShowInTaskbar = false,
-                Topmost = true
-            };
-
-            tip.Background = TryFindResource("CardBgBrush") as System.Windows.Media.Brush
-                ?? System.Windows.SystemColors.WindowBrush;
-            tip.Foreground = TryFindResource("TextBrush") as System.Windows.Media.Brush
-                ?? System.Windows.SystemColors.ControlTextBrush;
-
-            var panel = new StackPanel { Margin = new Thickness(16) };
-            panel.Children.Add(new TextBlock
-            {
-                Text = message,
-                FontSize = 15,
-                TextWrapping = TextWrapping.Wrap,
-                VerticalAlignment = VerticalAlignment.Top
-            });
-
-            var ok = new System.Windows.Controls.Button
-            {
-                Content = "确定",
-                Width = 86,
-                Height = 30,
-                IsDefault = true,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
-                Margin = new Thickness(0, 12, 0, 0)
-            };
-            ok.Click += (_, _) => tip.Close();
-            panel.Children.Add(ok);
-            tip.Content = panel;
-
-            // 空格 / Enter（以及 Esc）均可关闭提示窗
-            tip.PreviewKeyDown += (_, e) =>
-            {
-                if (e.Key == Key.Enter || e.Key == Key.Space || e.Key == Key.Escape)
-                {
-                    tip.Close();
-                    e.Handled = true;
-                }
-            };
-
-            // 在屏幕工作区内上下左右居中。SizeToContent 下需在 Loaded 后拿到实际尺寸再定位，
-            // 同时把焦点交给“确定”按钮，使其可用空格 / Enter 关闭。
-            tip.Loaded += (_, _) =>
-            {
-                double left = area.Left + (area.Width - tip.ActualWidth) / 2;
-                double top = area.Top + (area.Height - tip.ActualHeight) / 2;
-                tip.Left = Math.Max(area.Left, left);
-                tip.Top = Math.Max(area.Top, top);
-                ok.Focus();
-            };
-
-            _missingFileTip = tip;
-            _suppressHideOnDeactivate = true;
-            tip.Closed += (_, _) =>
-            {
-                _missingFileTip = null;
-                _suppressHideOnDeactivate = false;
-                if (IsLoaded)
-                {
-                    Activate();
-                    SearchBox.Focus();
-                }
-            };
-
-            tip.Show();
-        }
-
-        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.OriginalSource is DependencyObject dep)
-            {
-                if (FindVisualParent<System.Windows.Controls.TextBox>(dep) != null ||
-                    FindVisualParent<System.Windows.Controls.Button>(dep) != null ||
-                    FindVisualParent<System.Windows.Controls.Primitives.ScrollBar>(dep) != null ||
-                    FindVisualParent<ListBoxItem>(dep) != null)
-                {
-                    return;
-                }
-            }
-
-            if (e.LeftButton == MouseButtonState.Pressed)
-            {
-                try
-                {
-                    DragMove();
-                }
-                catch { }
-            }
-        }
-
-        private static T? FindVisualParent<T>(DependencyObject child) where T : DependencyObject
-        {
-            DependencyObject? parentObj = child;
-            while (parentObj != null)
-            {
-                if (parentObj is T parent)
-                    return parent;
-                if (parentObj is Visual || parentObj is System.Windows.Media.Media3D.Visual3D)
-                    parentObj = VisualTreeHelper.GetParent(parentObj);
-                else
-                    parentObj = LogicalTreeHelper.GetParent(parentObj);
-            }
-            return null;
-        }
-
-        private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
-        {
-            if (parent == null) return null;
-            int childCount = VisualTreeHelper.GetChildrenCount(parent);
-            for (int i = 0; i < childCount; i++)
-            {
-                DependencyObject child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T typedChild)
-                    return typedChild;
-                var foundChild = FindVisualChild<T>(child);
-                if (foundChild != null)
-                    return foundChild;
-            }
-            return null;
-        }
-
-        private void ResultListBox_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            if (e.OriginalSource is DependencyObject dep)
-            {
-                if (FindVisualParent<System.Windows.Controls.Primitives.ScrollBar>(dep) != null) return;
-
-                var item = FindVisualParent<ListBoxItem>(dep);
-                if (item != null && item.DataContext is ShortCutItem shortcut)
-                {
-                    ResultListBox.SelectedItem = shortcut;
-                    ShowItemContextMenu(shortcut, item);
-                    e.Handled = true;
-                }
-            }
-        }
-
-        private void ShowItemContextMenu(ShortCutItem item, FrameworkElement targetElement)
-        {
-            var menu = new ContextMenu();
-            if (TryFindResource("ModernContextMenu") is Style menuStyle)
-            {
-                menu.Style = menuStyle;
-            }
-
-            var menuItemStyle = TryFindResource("ModernMenuItem") as Style;
-
-            // 辅助构建矢量 Path 图标
-            UIElement CreateVectorIcon(string pathData, double size = 12.5)
-            {
-                var path = new System.Windows.Shapes.Path
-                {
-                    Data = Geometry.Parse(pathData),
-                    Fill = (System.Windows.Media.Brush)FindResource("AccentBrush"),
-                    Width = size,
-                    Height = size,
-                    Stretch = Stretch.Uniform,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center
-                };
-                return new Border
-                {
-                    Width = 20,
-                    Height = 20,
-                    CornerRadius = new CornerRadius(4),
-                    Background = (System.Windows.Media.Brush)FindResource("BadgeBgBrush"),
-                    Child = path
-                };
-            }
-
-            // 1. 添加新条目 (现代加号图标)
-            var miAdd = new MenuItem
-            {
-                Header = "添加新条目",
-                Icon = CreateVectorIcon("M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z", 12),
-                Style = menuItemStyle
-            };
-            miAdd.Click += (s, ev) =>
-            {
-                App.OpenManageWindow(null, addNew: true);
-                HideWindow();
-            };
-            menu.Items.Add(miAdd);
-
-            // 2. 编辑本条目 (现代铅笔/编辑图标)
-            var miEdit = new MenuItem
-            {
-                Header = "编辑本条目",
-                Icon = CreateVectorIcon("M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z", 12),
-                Style = menuItemStyle
-            };
-            miEdit.Click += (s, ev) =>
-            {
-                App.OpenManageWindow(item, addNew: false);
-                HideWindow();
-            };
-            menu.Items.Add(miEdit);
-
-            // 3. 打开目标程序目录 (现代文件夹图标)
-            var miOpenDir = new MenuItem
-            {
-                Header = "打开目标程序目录",
-                Icon = CreateVectorIcon("M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z", 12.5),
-                InputGestureText = "Ctrl+D",
-                Style = menuItemStyle
-            };
-            miOpenDir.Click += (s, ev) =>
-            {
-                OpenItemDirectory(item);
-            };
-            menu.Items.Add(miOpenDir);
-
-            menu.PlacementTarget = targetElement;
-            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
-            menu.IsOpen = true;
-        }
-
-        private void OpenItemDirectory(ShortCutItem item)
-        {
-            if (item == null) return;
-
-            string? dir = ResolveTargetDirectory(item);
-            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
-            {
-                try
-                {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = "explorer.exe",
-                        Arguments = $"\"{dir}\"",
-                        UseShellExecute = true
-                    });
-                    HideWindow();
-                    return;
-                }
-                catch { }
-            }
-
-            MessageBox.Show($"未能定位到有效的目标目录！\n\n命令行: {item.CommandLine}\n工作目录: {item.WorkingDir}", "ALTRun", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-
-        private static string? ResolveTargetDirectory(ShortCutItem item)
-        {
-            if (item == null) return null;
-
-            // 1. 如果显式配置了有效的 WorkingDir
-            if (!string.IsNullOrWhiteSpace(item.WorkingDir))
-            {
-                string expWorkingDir = Environment.ExpandEnvironmentVariables(item.WorkingDir.Trim().Trim('\"'));
-                if (Directory.Exists(expWorkingDir))
-                {
-                    return expWorkingDir;
-                }
-            }
-
-            string cmd = (item.CommandLine ?? "").Trim();
-            if (string.IsNullOrWhiteSpace(cmd)) return null;
-
-            // 2. 剥除旧版前缀修饰符 @ / @+ / @-
-            if (cmd.StartsWith("@+") || cmd.StartsWith("@-"))
-            {
-                cmd = cmd.Substring(2).TrimStart();
-            }
-            else if (cmd.StartsWith("@"))
-            {
-                cmd = cmd.Substring(1).TrimStart();
-            }
-
-            // 3. 展开系统环境变量
-            cmd = Environment.ExpandEnvironmentVariables(cmd);
-
-            // 4. 去除外层引号
-            string targetPath = cmd;
-            if (targetPath.StartsWith("\""))
-            {
-                int endQuote = targetPath.IndexOf('\"', 1);
-                if (endQuote > 0)
-                {
-                    targetPath = targetPath.Substring(1, endQuote - 1).Trim();
-                }
-                else
-                {
-                    targetPath = targetPath.Trim('\"');
-                }
-            }
-
-            // 5. 如果 targetPath 本身就是存在的目录
-            if (Directory.Exists(targetPath))
-            {
-                return targetPath;
-            }
-
-            // 6. 如果 targetPath 是存在的文件
-            if (File.Exists(targetPath))
-            {
-                return Path.GetDirectoryName(targetPath);
-            }
-
-            // 7. 处理包含参数的命令行
-            string[] parts = cmd.Split(' ');
-            if (parts.Length > 1)
-            {
-                string first = parts[0].Trim('\"');
-                if (File.Exists(first))
-                {
-                    return Path.GetDirectoryName(first);
-                }
-                if (Directory.Exists(first))
-                {
-                    return first;
-                }
-
-                string last = parts[parts.Length - 1].Trim('\"');
-                if (File.Exists(last))
-                {
-                    return Path.GetDirectoryName(last);
-                }
-                if (Directory.Exists(last))
-                {
-                    return last;
-                }
-            }
-
-            // 8. 尝试从 Windows 注册表解析文件名
-            try
-            {
-                string exeName = targetPath;
-                if (!exeName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                {
-                    exeName += ".exe";
-                }
-
-                using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey($@"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{exeName}");
-                if (key != null)
-                {
-                    string? appPath = key.GetValue("") as string;
-                    if (!string.IsNullOrEmpty(appPath))
-                    {
-                        appPath = appPath.Trim().Trim('\"');
-                        if (File.Exists(appPath)) return Path.GetDirectoryName(appPath);
-                    }
-                    string? appDir = key.GetValue("Path") as string;
-                    if (!string.IsNullOrEmpty(appDir) && Directory.Exists(appDir))
-                    {
-                        return appDir.Trim().Trim('\"');
-                    }
-                }
-            }
-            catch { }
-
-            return null;
-        }
-
-        private void ResultListBox_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-
-            if (e.OriginalSource is DependencyObject dep)
-            {
-                if (FindVisualParent<System.Windows.Controls.Primitives.ScrollBar>(dep) != null) return;
-
-                var item = FindVisualParent<ListBoxItem>(dep);
-                if (item != null && item.DataContext is ShortCutItem shortcut)
-                {
-                    ResultListBox.SelectedItem = shortcut;
-                    bool runAsAdmin = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
-                    ExecuteSelectedItem(runAsAdmin);
-                    e.Handled = true;
-                }
-            }
-        }
-
-        private void ResultListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            if (App.Config.Settings.SingleClickToRun) return;
-
-            bool runAsAdmin = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
-            ExecuteSelectedItem(runAsAdmin);
         }
 
         private void Window_Deactivated(object sender, EventArgs e)
@@ -1225,89 +198,53 @@ namespace ALTRun.Views
             }
         }
 
-        private void BtnTheme_Click(object sender, RoutedEventArgs e)
-        {
-            var menu = new ContextMenu();
-            string currentThemeId = App.Config.Settings.Theme;
-
-            var darkHeader = new MenuItem { Header = "── 🌙 暗色系列 ──", IsEnabled = false, FontSize = 12 };
-            menu.Items.Add(darkHeader);
-            foreach (var th in ThemeManager.Themes.Where(t => t.IsDark))
-            {
-                menu.Items.Add(CreateThemeMenuItem(th, currentThemeId, 13.5));
-            }
-
-            menu.Items.Add(new Separator());
-
-            var lightHeader = new MenuItem { Header = "── ☀️ 浅色系列 ──", IsEnabled = false, FontSize = 12 };
-            menu.Items.Add(lightHeader);
-            foreach (var th in ThemeManager.Themes.Where(t => !t.IsDark))
-            {
-                menu.Items.Add(CreateThemeMenuItem(th, currentThemeId, 13.5));
-            }
-
-            menu.PlacementTarget = BtnTheme;
-            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
-            menu.IsOpen = true;
-        }
-
         private void BtnManage_Click(object sender, RoutedEventArgs e)
         {
             App.OpenManageWindow();
         }
 
-        private void Window_Drop(object sender, System.Windows.DragEventArgs e)
+        /// <summary>
+        /// 释放系统级资源（托盘图标、全局热键）。幂等实现：窗口关闭与进程退出两条路径都会调用，
+        /// 避免某条路径没经过 OnClosed 时在任务栏留下"僵尸"托盘图标或占用热键。
+        /// </summary>
+        public void ReleaseSystemResources()
         {
-            if (e.Data.GetDataPresent(System.Windows.DataFormats.FileDrop))
+            try
             {
-                string[]? files = e.Data.GetData(System.Windows.DataFormats.FileDrop) as string[];
-                if (files != null && files.Length > 0)
-                {
-                    foreach (var file in files)
-                    {
-                        string fileName = Path.GetFileName(file);
-                        if (fileName.Equals("ShortCutList.txt", StringComparison.OrdinalIgnoreCase) ||
-                            fileName.EndsWith(".ini", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var imported = App.Config.ImportFromLegacyFile(file);
-                            if (imported.Count > 0)
-                            {
-                                App.Config.Settings.ShortCuts.AddRange(imported);
-                                App.Config.RefreshPinyinCache();
-                                App.Config.Save();
-                                PerformSearch();
-                                MessageBox.Show($"成功导入 {imported.Count} 个快捷方式！", "ALTRun", MessageBoxButton.OK, MessageBoxImage.Information);
-                            }
-                            continue;
-                        }
-
-                        string baseName = Path.GetFileNameWithoutExtension(file);
-                        string shortCutKey = baseName.Length >= 4 ? baseName.Substring(0, 4).ToLowerInvariant() : baseName.ToLowerInvariant();
-
-                        var newItem = new ShortCutItem
-                        {
-                            ShortCut = shortCutKey,
-                            Name = baseName,
-                            CommandLine = file,
-                            Freq = 10
-                        };
-
-                        App.Config.Settings.ShortCuts.Insert(0, newItem);
-                    }
-
-                    App.Config.RefreshPinyinCache();
-                    App.Config.Save();
-                    PerformSearch();
-                }
+                _trayIconService?.Dispose();
             }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] MainWindow 释放托盘图标失败: {ex.Message}");
+            }
+            finally
+            {
+                _trayIconService = null;
+            }
+
+            try
+            {
+                _globalHotKey?.Dispose();
+            }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] MainWindow 释放全局热键失败: {ex.Message}");
+            }
+            finally
+            {
+                _globalHotKey = null;
+            }
+
+            // 停掉隐藏态工作集裁剪的轮询，避免退出过程中还有定时器回调
+            MemoryTrimmer.Stop();
         }
 
         protected override void OnClosed(EventArgs e)
         {
             SaveWindowSize();
-            _trayIconService?.Dispose();
-            _globalHotKey?.Dispose();
+            ReleaseSystemResources();
             base.OnClosed(e);
         }
+
     }
 }

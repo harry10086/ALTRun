@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,6 +20,8 @@ namespace ALTRun.Services
         public bool EnableNumberKeyDirect { get; set; } = true;
         public bool HideWhenLostFocus { get; set; } = true;
         public bool RunAsAdminShortcut { get; set; } = true;
+        /// <summary>上次检测到新版本的月份（yyyy-MM），用于每月只检查一次更新</summary>
+        public string LastUpdateCheckMonth { get; set; } = string.Empty;
         public List<ShortCutItem> ShortCuts { get; set; } = new();
     }
 
@@ -27,6 +29,11 @@ namespace ALTRun.Services
     {
         private readonly string _appDir;
         private readonly string _jsonConfigPath;
+
+        // 延迟保存：频次等高频小改动先标脏，合并到一次写盘，避免每次执行都全量序列化
+        private System.Windows.Threading.DispatcherTimer? _saveTimer;
+        private bool _isDirty;
+        private const int SaveDelayMs = 1500;
 
         public AppSettings Settings { get; private set; } = new();
         public bool IsFirstRun { get; private set; } = false;
@@ -39,63 +46,57 @@ namespace ALTRun.Services
             {
                 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] ConfigManager.cs:49 静默异常: {ex.Message}");
+            }
 
             _appDir = AppDomain.CurrentDomain.BaseDirectory;
             _jsonConfigPath = Path.Combine(_appDir, "ALTRun_Config.json");
         }
 
+        /// <summary>本次启动是否因配置文件损坏而做了备份；null 表示未发生。</summary>
+        public string? CorruptConfigBackupPath { get; private set; }
+
+        private enum ConfigLoadResult
+        {
+            /// <summary>成功读取现代 JSON 配置</summary>
+            Loaded,
+            /// <summary>没有配置文件</summary>
+            Missing,
+            /// <summary>文件存在但内容损坏/被截断</summary>
+            Broken,
+            /// <summary>文件被其他进程长期占用，本次只读降级</summary>
+            Locked
+        }
+
         public void Load()
         {
-            // 1. 如果存在现代 JSON 配置，优先读取（支持微小重试，防止开机瞬间文件被杀软或网盘同步锁定）
-            if (File.Exists(_jsonConfigPath))
+            var state = TryLoadJsonConfig();
+            switch (state)
             {
-                for (int attempt = 0; attempt < 3; attempt++)
-                {
-                    try
+                case ConfigLoadResult.Loaded:
+                    return;
+
+                case ConfigLoadResult.Broken:
+                    // 关键防护：解析失败时先把原文件重命名备份，绝不让后面的默认初始化直接覆盖用户数据。
+                    BackupCorruptConfig();
+                    // 磁盘上原本存在配置文件，说明不是首次运行，不能弹首次使用向导
+                    IsFirstRun = false;
+                    break;
+
+                case ConfigLoadResult.Locked:
+                    // 文件被占用（杀软扫描 / 网盘同步 / 断电恢复中）：只读降级，本次不写盘，避免把真实数据写坏。
+                    IsFirstRun = false;
+                    if (Settings.ShortCuts.Count == 0)
                     {
-                        using var fs = new FileStream(_jsonConfigPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                        using var reader = new StreamReader(fs, Encoding.UTF8);
-                        string json = reader.ReadToEnd();
-
-                        if (!string.IsNullOrWhiteSpace(json))
-                        {
-                            var settings = JsonSerializer.Deserialize<AppSettings>(json);
-                            if (settings != null && settings.ShortCuts.Count > 0)
-                            {
-                                if (string.IsNullOrEmpty(settings.Theme))
-                                {
-                                    settings.Theme = settings.DarkMode ? "obsidian" : "pearl";
-                                }
-                                Settings = settings;
-
-                                // 确保系统级现代快捷方式开箱即用，无感修复历史遗留失效配置
-                                EnsureSystemShortcuts(Settings.ShortCuts);
-
-                                RefreshPinyinCache();
-                                Save();
-                                return;
-                            }
-                        }
-                        break;
+                        Settings.ShortCuts = GenerateModernDefaultShortcuts();
+                        RefreshPinyinCache();
                     }
-                    catch (IOException)
-                    {
-                        System.Threading.Thread.Sleep(50);
-                    }
-                    catch { break; }
-                }
+                    return;
 
-                // 关键防护：只要磁盘上已存在配置文件（非空），即使由于某种原因解析异常，也绝对不判定为首次运行
-                try
-                {
-                    var fileInfo = new FileInfo(_jsonConfigPath);
-                    if (fileInfo.Exists && fileInfo.Length > 0)
-                    {
-                        IsFirstRun = false;
-                    }
-                }
-                catch { }
+                case ConfigLoadResult.Missing:
+                    break;
             }
 
             // 2. 自动检测旧版原版 ShortCutList.txt 或 ShortCut.ini
@@ -131,8 +132,8 @@ namespace ALTRun.Services
             }
 
             // 3. 首次启动开箱即用：直接加载内置 Win10/11 现代快捷列表
-            // 如果本地已有配置文件（例如虽然由于某种原因读取失败），决不能重置或标记为首次运行
-            if (!File.Exists(_jsonConfigPath))
+            // 只有"确实没有配置文件"才算首次运行；配置损坏已被备份走的场景不能弹首次使用向导。
+            if (state == ConfigLoadResult.Missing)
             {
                 IsFirstRun = true;
             }
@@ -141,31 +142,252 @@ namespace ALTRun.Services
             Save();
         }
 
+        /// <summary>
+        /// 读取现代 JSON 配置。把"文件不存在 / 内容损坏 / 被占用"三种情况区分开，
+        /// 避免像旧实现那样一律吞掉异常然后无条件用默认值覆盖用户数据。
+        /// </summary>
+        private ConfigLoadResult TryLoadJsonConfig()
+        {
+            if (!File.Exists(_jsonConfigPath)) return ConfigLoadResult.Missing;
+
+            // 微小重试：防止开机瞬间文件被杀软或网盘同步锁定
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                string json;
+
+                // ⚠ 必须先把文本读进内存并释放文件句柄，再走 Save()。
+                // 否则后续的原子写（File.Replace / File.Move）会因为"目标是本进程自己持有句柄"而失败，
+                // 表现为配置写不进去、只留下一个 .tmp 文件。
+                try
+                {
+                    using (var fs = new FileStream(_jsonConfigPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (var reader = new StreamReader(fs, Encoding.UTF8))
+                    {
+                        json = reader.ReadToEnd();
+                    }
+                }
+                catch (IOException ex)
+                {
+                    AppLog.Write($"[ALTRun] ConfigManager 配置读取被占用，第 {attempt + 1}/3 次重试: {ex.Message}");
+                    System.Threading.Thread.Sleep(50);
+                    continue;
+                }
+                catch (Exception ex)
+                {
+                    AppLog.Write($"[ALTRun] ConfigManager 配置读取失败: {ex.Message}");
+                    return ConfigLoadResult.Broken;
+                }
+
+                // ── 以下处理阶段文件句柄已释放，可以安全写盘 ──
+                if (string.IsNullOrWhiteSpace(json))
+                {
+                    AppLog.Write("[ALTRun] ConfigManager 配置文件为空，按损坏处理");
+                    return ConfigLoadResult.Broken;
+                }
+
+                AppSettings? settings;
+                try
+                {
+                    settings = JsonSerializer.Deserialize<AppSettings>(json);
+                }
+                catch (Exception ex)
+                {
+                    AppLog.Write($"[ALTRun] ConfigManager 配置解析失败: {ex.Message}");
+                    return ConfigLoadResult.Broken;
+                }
+
+                // "ShortCuts": [] 表示用户主动清空了列表，应当接受；
+                // 而字段整个缺失或为 null，则说明文件被截断（断电/杀软中断），必须按损坏处理并备份。
+                bool hasShortCutsProperty = json.IndexOf("\"ShortCuts\"", StringComparison.Ordinal) >= 0;
+                if (settings == null || settings.ShortCuts == null || (settings.ShortCuts.Count == 0 && !hasShortCutsProperty))
+                {
+                    AppLog.Write("[ALTRun] ConfigManager 配置结构不完整，按损坏处理");
+                    return ConfigLoadResult.Broken;
+                }
+
+                bool configChanged = false;
+                if (string.IsNullOrEmpty(settings.Theme))
+                {
+                    settings.Theme = settings.DarkMode ? "obsidian" : "pearl";
+                    configChanged = true;
+                }
+                Settings = settings;
+
+                // 确保系统级现代快捷方式开箱即用，无感修复历史遗留失效配置
+                configChanged |= EnsureSystemShortcuts(Settings.ShortCuts);
+
+                RefreshPinyinCache();
+
+                // 只有本次读取确实修正了内容才写盘：避免每次启动都白白重写一遍配置
+                if (configChanged)
+                {
+                    Save();
+                }
+                return ConfigLoadResult.Loaded;
+            }
+
+            AppLog.Write("[ALTRun] ConfigManager 配置文件持续被占用，本次以只读降级方式启动（不写盘）");
+            return ConfigLoadResult.Locked;
+        }
+
+        /// <summary>
+        /// 把损坏的配置文件重命名为 ALTRun_Config.json.corrupt-&lt;时间戳&gt;，保证用户原始数据可人工恢复。
+        /// </summary>
+        private void BackupCorruptConfig()
+        {
+            try
+            {
+                if (!File.Exists(_jsonConfigPath)) return;
+
+                string backupPath = Path.Combine(_appDir, $"ALTRun_Config.json.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}");
+                int suffix = 1;
+                while (File.Exists(backupPath))
+                {
+                    backupPath = Path.Combine(_appDir, $"ALTRun_Config.json.corrupt-{DateTime.Now:yyyyMMdd-HHmmss}-{suffix++}");
+                }
+
+                File.Move(_jsonConfigPath, backupPath);
+                CorruptConfigBackupPath = backupPath;
+                AppLog.Write($"[ALTRun] 配置文件损坏，已备份到: {backupPath}");
+            }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] ConfigManager 备份损坏配置失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 立即保存（设置变更等需要立刻落盘的场景）。会取消挂起的延迟保存。
+        /// </summary>
         public void Save()
         {
+            // 计时器属于创建它的 UI 线程；后台线程（如向导自动导入）调用 Save 时直接 Stop 会抛
+            // InvalidOperationException，因此这里必须容错——即使停不掉，OnSaveTimerTick 也会因 _isDirty
+            // 已置 false 而什么都不做。
+            try
+            {
+                _saveTimer?.Stop();
+            }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] ConfigManager 停止延迟保存计时器失败: {ex.Message}");
+            }
+
+            _isDirty = false;
             try
             {
                 var options = new JsonSerializerOptions { WriteIndented = true };
                 string json = JsonSerializer.Serialize(Settings, options);
-                File.WriteAllText(_jsonConfigPath, json, Encoding.UTF8);
+                WriteAllTextAtomic(_jsonConfigPath, json);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] ConfigManager.cs:164 静默异常: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 原子写盘：先写同目录临时文件，再一次性替换目标文件。
+        /// 避免"写到一半被断电/杀软中断"生成半截 JSON——那正是下次启动被判为配置损坏的根因。
+        /// </summary>
+        private static void WriteAllTextAtomic(string path, string content)
+        {
+            string tempPath = path + ".tmp";
+            File.WriteAllText(tempPath, content, Encoding.UTF8);
+
+            if (File.Exists(path))
+            {
+                try
+                {
+                    // File.Replace 是真正的原子替换（同时保留原文件 ACL）
+                    File.Replace(tempPath, path, null);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    // FAT32 / 部分网络盘不支持 Replace，退回 Move 覆盖
+                    AppLog.Write($"[ALTRun] ConfigManager File.Replace 失败，改用 Move: {ex.Message}");
+                }
+            }
+
+            try
+            {
+                File.Move(tempPath, path, overwrite: true);
+            }
+            catch (Exception)
+            {
+                // 彻底写不进去（目标被独占、目录只读等）：清掉临时文件，避免目录里堆积 .tmp
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch (Exception cleanupEx)
+                {
+                    AppLog.Write($"[ALTRun] ConfigManager 清理临时文件失败: {cleanupEx.Message}");
+                }
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 标记配置已变更但不立即写盘，合并短时间内的多次改动为一次保存。用于频次自增等高频场景。
+        /// </summary>
+        public void MarkDirty()
+        {
+            _isDirty = true;
+            _saveTimer ??= new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(SaveDelayMs)
+            };
+            _saveTimer.Tick -= OnSaveTimerTick;
+            _saveTimer.Tick += OnSaveTimerTick;
+            _saveTimer.Stop();
+            _saveTimer.Start();
+        }
+
+        private void OnSaveTimerTick(object? sender, EventArgs e)
+        {
+            if (_isDirty)
+            {
+                Save();
+            }
+        }
+
+        /// <summary>
+        /// 程序退出前调用：若有挂起的延迟保存则立即落盘，避免频次改动丢失。
+        /// </summary>
+        public void FlushPendingSave()
+        {
+            if (_isDirty)
+            {
+                Save();
+            }
         }
 
         public void RefreshPinyinCache()
         {
             foreach (var item in Settings.ShortCuts)
             {
+                // 一次性预计算小写形式与拼音，搜索时直接复用，避免逐字符重复分配字符串
+                item.LowerShortCut = (item.ShortCut ?? "").ToLowerInvariant();
+                item.LowerName = (item.Name ?? "").ToLowerInvariant();
+
                 try
                 {
                     item.PinyinInitials = PinyinHelper.GetInitials(item.Name ?? "");
                     item.PinyinShortcut = PinyinHelper.GetInitials(item.ShortCut ?? "");
                 }
-                catch
+                catch (Exception ex)
                 {
-                    item.PinyinInitials = (item.Name ?? "").ToLowerInvariant();
-                    item.PinyinShortcut = (item.ShortCut ?? "").ToLowerInvariant();
+                    // 拼音库异常时退回小写名称，功能降级但不影响搜索可用性
+                    AppLog.Write($"[ALTRun] ConfigManager 拼音缓存计算失败 ({item.Name}): {ex.Message}");
+                    item.PinyinInitials = item.LowerName;
+                    item.PinyinShortcut = item.LowerShortCut;
                 }
+
+                // GetInitials 内部已输出小写，这里再兜底一次，保证缓存不依赖其实现细节
+                item.LowerPinyinInitials = item.PinyinInitials.ToLowerInvariant();
+                item.LowerPinyinShortcut = item.PinyinShortcut.ToLowerInvariant();
             }
         }
 
@@ -246,8 +468,8 @@ namespace ALTRun.Services
                             // 兼容 FavoriteList.txt 格式: Keyword|Name
                             string keyword = parts[0].Trim();
                             string name = parts[1].Trim();
-                            var existing = Settings.ShortCuts.Find(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase) ||
-                                                                       x.ShortCut.Equals(keyword, StringComparison.OrdinalIgnoreCase));
+                            var existing = Settings.ShortCuts.Find(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase) ||
+                                                                       string.Equals(x.ShortCut, keyword, StringComparison.OrdinalIgnoreCase));
                             if (existing != null)
                             {
                                 existing.Freq += 500;
@@ -288,7 +510,10 @@ namespace ALTRun.Services
                     ApplyFavoriteList(favPath);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] ConfigManager.cs:346 静默异常: {ex.Message}");
+            }
 
             return list;
         }
@@ -325,8 +550,8 @@ namespace ALTRun.Services
                         string keyword = parts[0].Trim();
                         string name = parts[1].Trim();
 
-                        var match = Settings.ShortCuts.Find(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase) ||
-                                                                 x.ShortCut.Equals(keyword, StringComparison.OrdinalIgnoreCase));
+                        var match = Settings.ShortCuts.Find(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase) ||
+                                                                 string.Equals(x.ShortCut, keyword, StringComparison.OrdinalIgnoreCase));
                         if (match != null)
                         {
                             match.Freq += 500; // 最爱置顶加权
@@ -334,7 +559,10 @@ namespace ALTRun.Services
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] ConfigManager.cs:392 静默异常: {ex.Message}");
+            }
         }
 
         public void ExportToLegacyFile(string filePath)
@@ -348,46 +576,62 @@ namespace ALTRun.Services
                 }
                 File.WriteAllText(filePath, sb.ToString(), Encoding.GetEncoding("GB18030"));
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] ConfigManager.cs:406 静默异常: {ex.Message}");
+            }
         }
 
-        public static void EnsureSystemShortcuts(List<ShortCutItem> shortcuts)
+        /// <summary>
+        /// 无感修复历史遗留失效指令，并补齐系统必备快捷项。
+        /// </summary>
+        /// <returns>是否真的改动了列表（没改动就不必再写一次配置）。</returns>
+        public static bool EnsureSystemShortcuts(List<ShortCutItem> shortcuts)
         {
-            if (shortcuts == null) return;
+            if (shortcuts == null) return false;
+
+            bool changed = false;
 
             // 1. 自动将旧版已失效的 WinCtl / SetSuspendState 指令无感升级为现代原生协议
             foreach (var item in shortcuts)
             {
                 if (string.IsNullOrWhiteSpace(item.CommandLine)) continue;
                 string cmd = item.CommandLine.Trim();
+                string? upgraded = null;
 
                 if (cmd.Contains("WinCtl", StringComparison.OrdinalIgnoreCase))
                 {
                     string lower = cmd.ToLowerInvariant();
                     if (lower.Contains("minall"))
-                        item.CommandLine = "win:desktop";
+                        upgraded = "win:desktop";
                     else if (lower.Contains("max all") || lower.Contains("maxall"))
-                        item.CommandLine = "win:maxall";
+                        upgraded = "win:maxall";
                     else if (lower.Contains("close all") || lower.Contains("closeall"))
-                        item.CommandLine = "win:closeall";
+                        upgraded = "win:closeall";
                     else if (lower.Contains("untop"))
-                        item.CommandLine = "win:untop";
+                        upgraded = "win:untop";
                     else if (lower.Contains("top"))
-                        item.CommandLine = "win:top";
+                        upgraded = "win:top";
                     else if (lower.Contains("min"))
-                        item.CommandLine = "win:min";
+                        upgraded = "win:min";
                     else if (lower.Contains("max"))
-                        item.CommandLine = "win:max";
+                        upgraded = "win:max";
                     else if (lower.Contains("close"))
-                        item.CommandLine = "win:close";
+                        upgraded = "win:close";
                 }
                 else if (cmd.Contains("SetSuspendState", StringComparison.OrdinalIgnoreCase) && cmd.Contains("powrprof.dll", StringComparison.OrdinalIgnoreCase))
                 {
-                    item.CommandLine = "sys:sleep";
+                    upgraded = "sys:sleep";
                 }
                 else if (cmd.StartsWith("::{"))
                 {
-                    item.CommandLine = $"explorer.exe shell:{cmd}";
+                    upgraded = $"explorer.exe shell:{cmd}";
+                }
+
+                if (upgraded != null && !string.Equals(upgraded, item.CommandLine, StringComparison.Ordinal))
+                {
+                    item.CommandLine = upgraded;
+                    changed = true;
                 }
             }
 
@@ -402,8 +646,11 @@ namespace ALTRun.Services
                 if (!exists)
                 {
                     shortcuts.Add(def);
+                    changed = true;
                 }
             }
+
+            return changed;
         }
 
         public static List<ShortCutItem> GetEssentialSystemShortcuts()

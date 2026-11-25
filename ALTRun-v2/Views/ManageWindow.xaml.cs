@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -47,7 +47,7 @@ namespace ALTRun.Views
 
         public void SelectAndFocusItem(ShortCutItem item)
         {
-            var match = App.Config.Settings.ShortCuts.FirstOrDefault(x => x == item ||
+            var match = App.Config.Settings.ShortCuts.FirstOrDefault(x => x.Id == item.Id ||
                 (x.ShortCut == item.ShortCut && x.Name == item.Name && x.CommandLine == item.CommandLine));
 
             if (match != null)
@@ -71,11 +71,11 @@ namespace ALTRun.Views
             {
                 var ver = typeof(ManageWindow).Assembly.GetName().Version;
                 string verStr = ver != null ? $"v{ver.Major}.{ver.Minor}.{ver.Build}" : "v2.0.8";
-                Title = $"ALTRun {verStr} - 快捷方式管理中心";
+                Title = string.Format(AppStrings.ManageTitleFormat, verStr);
             }
             catch
             {
-                Title = "ALTRun v2.0.8 - 快捷方式管理中心";
+                Title = AppStrings.ManageTitleFallback;
             }
         }
 
@@ -150,14 +150,14 @@ namespace ALTRun.Views
 
             if (modifiers == KeyModifiers.None)
             {
-                WpfMessageBox.Show("请至少勾选一个修饰键（例如 Alt 或 Ctrl）！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                WpfMessageBox.Show(AppStrings.HotKeyNeedModifier, AppStrings.MsgBoxTitleHint, MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             string? selectedKeyStr = CmbKey.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedKeyStr))
             {
-                WpfMessageBox.Show("请选择主按键！", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                WpfMessageBox.Show(AppStrings.HotKeyNeedMainKey, AppStrings.MsgBoxTitleHint, MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -177,11 +177,11 @@ namespace ALTRun.Views
                 if (success)
                 {
                     string hotkeyText = MainWindow.FormatHotKeyText(modifiers, key);
-                    WpfMessageBox.Show($"全局唤醒热键已成功更新为: {hotkeyText}", "设置成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                    WpfMessageBox.Show(string.Format(AppStrings.HotKeyUpdatedFormat, hotkeyText), AppStrings.HotKeyUpdatedTitle, MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 else
                 {
-                    WpfMessageBox.Show("热键注册失败！该按键组合可能已被系统或其他运行中的软件占用，请尝试其他组合（例如 Alt+Space 或 Ctrl+Shift+Space）。", "热键冲突", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    WpfMessageBox.Show(AppStrings.HotKeyConflict, AppStrings.HotKeyConflictTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
         }
@@ -233,7 +233,10 @@ namespace ALTRun.Views
             {
                 DwmHelper.ApplyModernWindowStyles(this, theme.IsDark);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] ManageWindow.xaml.cs:236 静默异常: {ex.Message}");
+            }
         }
 
         private void CmbThemes_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -305,8 +308,8 @@ namespace ALTRun.Views
         {
             var dialog = new WpfOpenFileDialog
             {
-                Title = "选择要启动的程序、快捷方式或文件",
-                Filter = "所有支持的文件 (*.exe;*.lnk;*.bat;*.cmd;*.*)|*.exe;*.lnk;*.bat;*.cmd;*.*|应用程序 (*.exe)|*.exe|桌面快捷方式 (*.lnk)|*.lnk|批处理脚本 (*.bat;*.cmd)|*.bat;*.cmd|所有文件 (*.*)|*.*"
+                Title = AppStrings.SelectProgramTitle,
+                Filter = AppStrings.ProgramFileFilter
             };
 
             if (dialog.ShowDialog() == true)
@@ -315,7 +318,7 @@ namespace ALTRun.Views
                 EditCommandLine.Text = filePath;
 
                 // 若名称为空或是默认占位符，自动提取文件名
-                if (string.IsNullOrWhiteSpace(EditName.Text) || EditName.Text == "新快捷方式")
+                if (string.IsNullOrWhiteSpace(EditName.Text) || EditName.Text == AppStrings.NewShortCutName)
                 {
                     string name = Path.GetFileNameWithoutExtension(filePath);
                     EditName.Text = name;
@@ -333,7 +336,7 @@ namespace ALTRun.Views
         {
             var dialog = new Microsoft.Win32.OpenFolderDialog
             {
-                Title = "选择要快速打开的文件夹目录"
+                Title = AppStrings.SelectFolderTitle
             };
 
             if (dialog.ShowDialog(this) == true)
@@ -341,7 +344,7 @@ namespace ALTRun.Views
                 string folderPath = dialog.FolderName;
                 EditCommandLine.Text = folderPath;
 
-                if (string.IsNullOrWhiteSpace(EditName.Text) || EditName.Text == "新快捷方式")
+                if (string.IsNullOrWhiteSpace(EditName.Text) || EditName.Text == AppStrings.NewShortCutName)
                 {
                     string name = Path.GetFileName(folderPath);
                     if (string.IsNullOrEmpty(name)) name = folderPath;
@@ -363,20 +366,14 @@ namespace ALTRun.Views
                 _selectedItem.ShortCut = EditShortCut.Text.Trim();
                 _selectedItem.Name = EditName.Text.Trim();
                 _selectedItem.CommandLine = EditCommandLine.Text.Trim();
-                try
-                {
-                    _selectedItem.PinyinInitials = PinyinHelper.GetInitials(_selectedItem.Name);
-                    _selectedItem.PinyinShortcut = PinyinHelper.GetInitials(_selectedItem.ShortCut);
-                }
-                catch
-                {
-                    _selectedItem.PinyinInitials = _selectedItem.Name.ToLowerInvariant();
-                    _selectedItem.PinyinShortcut = _selectedItem.ShortCut.ToLowerInvariant();
-                }
 
+                // 必须走 RefreshPinyinCache：它同时刷新拼音首字母与 4 个小写缓存（LowerShortCut / LowerName /
+                // LowerPinyinInitials / LowerPinyinShortcut）。只更新 PinyinInitials/PinyinShortcut 会漏掉小写缓存，
+                // 导致改名后主界面仍用旧关键词匹配——新名字搜不到，旧关键词却能搜到（搜索结果与显示内容不一致）。
+                App.Config.RefreshPinyinCache();
                 App.Config.Save();
                 RefreshGrid(TxtFilter.Text);
-                WpfMessageBox.Show("快捷项修改已保存！", "ALTRun", MessageBoxButton.OK, MessageBoxImage.Information);
+                WpfMessageBox.Show(AppStrings.SavedMessage, AppStrings.AppName, MessageBoxButton.OK, MessageBoxImage.Information);
             }
             else
             {
@@ -390,13 +387,12 @@ namespace ALTRun.Views
                 };
                 if (!string.IsNullOrEmpty(newItem.ShortCut) || !string.IsNullOrEmpty(newItem.Name))
                 {
-                    newItem.PinyinInitials = PinyinHelper.GetInitials(newItem.Name);
-                    newItem.PinyinShortcut = PinyinHelper.GetInitials(newItem.ShortCut);
                     App.Config.Settings.ShortCuts.Insert(0, newItem);
+                    App.Config.RefreshPinyinCache();   // 新增项同样补齐小写缓存，保证立刻可被新名称/新快捷键搜到
                     App.Config.Save();
                     RefreshGrid(TxtFilter.Text);
                     ShortcutGrid.SelectedItem = newItem;
-                    WpfMessageBox.Show("已新增快捷方式！", "ALTRun", MessageBoxButton.OK, MessageBoxImage.Information);
+                    WpfMessageBox.Show(AppStrings.AddedMessage, AppStrings.AppName, MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
         }
@@ -411,7 +407,7 @@ namespace ALTRun.Views
             var newItem = new ShortCutItem
             {
                 ShortCut = "new",
-                Name = "新快捷方式",
+                Name = AppStrings.NewShortCutName,
                 CommandLine = "",
                 Freq = 10
             };
@@ -443,7 +439,7 @@ namespace ALTRun.Views
         {
             if (ShortcutGrid.SelectedItem is ShortCutItem item)
             {
-                if (WpfMessageBox.Show($"确定要删除快捷项 [{item.Name}] 吗？", "确认删除", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                if (WpfMessageBox.Show(string.Format(AppStrings.DeleteConfirmFormat, item.Name), AppStrings.DeleteConfirmTitle, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
                 {
                     App.Config.Settings.ShortCuts.Remove(item);
                     App.Config.Save();
@@ -456,8 +452,8 @@ namespace ALTRun.Views
         {
             var dialog = new WpfOpenFileDialog
             {
-                Filter = "ALTRun 列表文件 (ShortCutList.txt;FavoriteList.txt;*.txt;*.ini)|ShortCutList.txt;FavoriteList.txt;*.txt;*.ini|文本文件 (*.txt)|*.txt|INI 配置文件 (*.ini)|*.ini|所有文件 (*.*)|*.*",
-                Title = "选择原版 ShortCutList.txt / FavoriteList.txt / INI 文件"
+                Filter = AppStrings.LegacyImportFilter,
+                Title = AppStrings.SelectLegacyTitle
             };
 
             if (dialog.ShowDialog() == true)
@@ -469,9 +465,10 @@ namespace ALTRun.Views
                     {
                         foreach (var newItem in imported)
                         {
+                            // 手工编辑过的配置可能出现 null 字段，旧写法 x.ShortCut.Equals(...) 会抛空引用 → "导入失败"
                             var existing = App.Config.Settings.ShortCuts.FirstOrDefault(x =>
-                                x.ShortCut.Equals(newItem.ShortCut, StringComparison.OrdinalIgnoreCase) &&
-                                x.Name.Equals(newItem.Name, StringComparison.OrdinalIgnoreCase));
+                                string.Equals(x.ShortCut, newItem.ShortCut, StringComparison.OrdinalIgnoreCase) &&
+                                string.Equals(x.Name, newItem.Name, StringComparison.OrdinalIgnoreCase));
 
                             if (existing != null)
                             {
@@ -488,16 +485,16 @@ namespace ALTRun.Views
                         App.Config.Save();
                         RefreshGrid(TxtFilter.Text);
 
-                        WpfMessageBox.Show($"成功解析并导入/更新了 {imported.Count} 个快捷方式！", "导入完成", MessageBoxButton.OK, MessageBoxImage.Information);
+                        WpfMessageBox.Show(string.Format(AppStrings.ImportSuccessFormat, imported.Count), AppStrings.ImportTitle, MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                     else
                     {
-                        WpfMessageBox.Show("未能从文件中解析出有效的快捷方式项，请确保文件包含有效内容。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        WpfMessageBox.Show(AppStrings.ImportEmpty, AppStrings.MsgBoxTitleHint, MessageBoxButton.OK, MessageBoxImage.Warning);
                     }
                 }
                 catch (Exception ex)
                 {
-                    WpfMessageBox.Show($"导入失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    WpfMessageBox.Show(AppStrings.ImportFailPrefix + ex.Message, AppStrings.MsgBoxTitleError, MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
@@ -506,9 +503,9 @@ namespace ALTRun.Views
         {
             var dialog = new WpfSaveFileDialog
             {
-                Filter = "ALTRun 列表文件 (*.txt)|*.txt|INI 配置文件 (*.ini)|*.ini",
+                Filter = AppStrings.LegacyExportFilter,
                 FileName = "ShortCutList.txt",
-                Title = "导出为原版 ShortCutList.txt"
+                Title = AppStrings.ExportLegacyTitle
             };
 
             if (dialog.ShowDialog() == true)
@@ -516,11 +513,11 @@ namespace ALTRun.Views
                 try
                 {
                     App.Config.ExportToLegacyFile(dialog.FileName);
-                    WpfMessageBox.Show($"已成功导出到: {dialog.FileName}", "导出完成", MessageBoxButton.OK, MessageBoxImage.Information);
+                    WpfMessageBox.Show(string.Format(AppStrings.ExportSuccessFormat, dialog.FileName), AppStrings.ExportTitle, MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 catch (Exception ex)
                 {
-                    WpfMessageBox.Show($"导出失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    WpfMessageBox.Show(AppStrings.ExportFailPrefix + ex.Message, AppStrings.MsgBoxTitleError, MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
@@ -528,9 +525,9 @@ namespace ALTRun.Views
         private async void BtnCheckUpdate_Click(object sender, RoutedEventArgs e)
         {
             var btn = BtnCheckUpdate;
-            string originalContent = btn.Content?.ToString() ?? "🔄 检查更新";
+            string originalContent = btn.Content?.ToString() ?? AppStrings.UpdateBtnDefault;
             btn.IsEnabled = false;
-            btn.Content = "⏳ 检查中...";
+            btn.Content = AppStrings.UpdateBtnChecking;
 
             try
             {
@@ -538,12 +535,9 @@ namespace ALTRun.Views
 
                 if (info.HasUpdate)
                 {
-                    string msg = $"🎉 发现新版本！\n\n" +
-                                 $"当前版本: {info.CurrentVersion}\n" +
-                                 $"最新版本: {info.LatestVersion}\n\n" +
-                                 $"是否立即前往 GitHub 页面查看更新日志并下载安装？";
+                    string msg = string.Format(AppStrings.UpdateNewVersionBodyFormat, info.CurrentVersion, info.LatestVersion);
 
-                    var result = WpfMessageBox.Show(this, msg, "ALTRun 软件更新提示", MessageBoxButton.YesNo, MessageBoxImage.Information);
+                    var result = WpfMessageBox.Show(this, msg, AppStrings.UpdateTitleSoftware, MessageBoxButton.YesNo, MessageBoxImage.Information);
                     if (result == MessageBoxResult.Yes)
                     {
                         UpdateCheckerService.OpenUrl(info.ReleaseUrl);
@@ -552,16 +546,13 @@ namespace ALTRun.Views
                 else
                 {
                     string statusDesc = string.IsNullOrEmpty(info.ErrorMessage)
-                        ? "您当前使用的是最新版本，暂无可用更新。"
-                        : $"检查更新出现提示: {info.ErrorMessage}";
+                        ? AppStrings.UpdateLatest
+                        : AppStrings.UpdateNoticePrefix + info.ErrorMessage;
 
-                    string msg = $"ℹ️ ALTRun 版本信息\n\n" +
-                                 $"当前运行版本: {info.CurrentVersion}\n" +
-                                 $"GitHub 开源库: {UpdateCheckerService.RepoUrl}\n\n" +
-                                 $"{statusDesc}\n\n" +
-                                 $"是否打开 GitHub 仓库项目主页？";
+                    string msg = string.Format(AppStrings.UpdateLatestWithNoticeBodyFormat,
+                        info.CurrentVersion, UpdateCheckerService.RepoUrl, statusDesc);
 
-                    var result = WpfMessageBox.Show(this, msg, "ALTRun 版本与更新", MessageBoxButton.YesNo, MessageBoxImage.Information);
+                    var result = WpfMessageBox.Show(this, msg, AppStrings.UpdateTitleVersion, MessageBoxButton.YesNo, MessageBoxImage.Information);
                     if (result == MessageBoxResult.Yes)
                     {
                         UpdateCheckerService.OpenUrl(UpdateCheckerService.RepoUrl);
@@ -570,7 +561,7 @@ namespace ALTRun.Views
             }
             catch (Exception ex)
             {
-                WpfMessageBox.Show(this, $"检查更新出错: {ex.Message}", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                WpfMessageBox.Show(this, AppStrings.UpdateErrorPrefix + ex.Message, AppStrings.MsgBoxTitleHint, MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             finally
             {
@@ -582,7 +573,6 @@ namespace ALTRun.Views
         protected override void OnClosed(EventArgs e)
         {
             base.OnClosed(e);
-            MemoryOptimizer.TrimMemoryAsync(300);
         }
     }
 }

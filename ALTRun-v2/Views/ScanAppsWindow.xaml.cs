@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -44,7 +44,10 @@ namespace ALTRun.Views
                 Resources["TextMuted"] = new SolidColorBrush(theme.TextMutedColor);
                 Resources["AccentBrush"] = new SolidColorBrush(theme.AccentColor);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] ScanAppsWindow.xaml.cs:47 静默异常: {ex.Message}");
+            }
         }
 
         private async Task StartScanAsync()
@@ -125,8 +128,8 @@ namespace ALTRun.Views
             int selected = _allScannedItems.Count(x => x.IsSelected);
             int newCount = _allScannedItems.Count(x => !x.IsAlreadyExists);
 
-            TxtStatus.Text = $"共扫描到 {total} 个应用 (新发现 {newCount} 个)，已勾选 {selected} 个待导入";
-            BtnImportSelected.Content = $"✓ 导入勾选软件 ({selected})";
+            TxtStatus.Text = string.Format(AppStrings.ScanStatusFormat, total, newCount, selected);
+            BtnImportSelected.Content = string.Format(AppStrings.ImportSelectedButtonFormat, selected);
             BtnImportSelected.IsEnabled = selected > 0;
         }
 
@@ -135,46 +138,62 @@ namespace ALTRun.Views
             var selectedItems = _allScannedItems.Where(x => x.IsSelected).ToList();
             if (selectedItems.Count == 0)
             {
-                WpfMessageBox.Show("请先勾选需要导入的软件！", "ALTRun 提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                WpfMessageBox.Show(AppStrings.PleaseSelectSoftware, AppStrings.TipTitle, MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
             int count = 0;
-            var currentList = App.Config.Settings.ShortCuts;
-            var existingPaths = new HashSet<string>(currentList.Select(x => x.CommandLine.Trim().Trim('\"')), StringComparer.OrdinalIgnoreCase);
-
-            foreach (var item in selectedItems)
+            try
             {
-                if (existingPaths.Contains(item.TargetPath))
+                var currentList = App.Config.Settings.ShortCuts;
+                // CommandLine 可能因手工编辑配置而为 null，直接 .Trim() 会抛空引用（整个导入按钮失灵）
+                var existingPaths = new HashSet<string>(
+                    currentList.Select(x => (x.CommandLine ?? "").Trim().Trim('\"')),
+                    StringComparer.OrdinalIgnoreCase);
+
+                foreach (var item in selectedItems)
                 {
-                    continue; // 避免重复
+                    if (existingPaths.Contains(item.TargetPath))
+                    {
+                        continue; // 避免重复
+                    }
+
+                    var newItem = new ShortCutItem
+                    {
+                        Name = item.Name,
+                        ShortCut = (item.ShortCut ?? "").ToLowerInvariant(),
+                        CommandLine = item.TargetPath,
+                        WorkingDir = string.IsNullOrWhiteSpace(item.WorkingDir) ? System.IO.Path.GetDirectoryName(item.TargetPath) ?? "" : item.WorkingDir,
+                        Freq = 0
+                    };
+
+                    currentList.Add(newItem);
+                    existingPaths.Add(item.TargetPath);
+                    count++;
                 }
 
-                var newItem = new ShortCutItem
+                if (count > 0)
                 {
-                    Name = item.Name,
-                    ShortCut = item.ShortCut.ToLowerInvariant(),
-                    CommandLine = item.TargetPath,
-                    WorkingDir = string.IsNullOrWhiteSpace(item.WorkingDir) ? System.IO.Path.GetDirectoryName(item.TargetPath) ?? "" : item.WorkingDir,
-                    Freq = 0
-                };
-
-                currentList.Add(newItem);
-                existingPaths.Add(item.TargetPath);
-                count++;
+                    App.Config.RefreshPinyinCache();
+                    App.Config.Save();
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLog.Write($"[ALTRun] ScanAppsWindow 导入已扫描软件失败: {ex.Message}");
+                WpfMessageBox.Show(AppStrings.ImportFailPrefix + ex.Message, AppStrings.MsgBoxTitleError, MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
             }
 
             if (count > 0)
             {
-                App.Config.RefreshPinyinCache();
-                App.Config.Save();
                 ImportedCount = count;
-                WpfMessageBox.Show($"成功导入 {count} 个软件快捷方式！\n现在您可以直接按唤醒热键 (Alt+R) 输入快捷词或软件名称快速启动了。", "导入成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                WpfMessageBox.Show(string.Format(AppStrings.ImportSelectedSuccessFormat, count), AppStrings.ImportSelectedSuccessTitle, MessageBoxButton.OK, MessageBoxImage.Information);
                 SafeClose(true);
             }
             else
             {
-                WpfMessageBox.Show("选中的软件均已存在于快捷列表中，无需重复导入。", "ALTRun 提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                WpfMessageBox.Show(AppStrings.AlreadyImported, AppStrings.TipTitle, MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 

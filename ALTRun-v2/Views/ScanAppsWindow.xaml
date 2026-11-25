@@ -1,7 +1,8 @@
-<Window x:Class="ALTRun.Views.ScanAppsWindow"
+﻿<Window x:Class="ALTRun.Views.ScanAppsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="ALTRun - 扫描并导入本机已安装软件"
+        xmlns:svc="clr-namespace:ALTRun.Services"
+        Title="{x:Static svc:AppStrings.ScanWindowTitle}"
         Height="620"
         Width="900"
         MinHeight="480"
@@ -132,8 +133,8 @@
 
             <!-- 说明文本 -->
             <StackPanel Grid.Row="0" Margin="0,0,0,12">
-                <TextBlock Text="⚡ 本机已安装软件智能扫描" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
-                <TextBlock Text="已自动从开始菜单与桌面检索，并智能过滤卸载程序、帮助手册及辅助工具。您可以勾选想要导入的软件并直接修改快捷词。"
+                <TextBlock Text="{x:Static svc:AppStrings.ScanHeader}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                <TextBlock Text="{x:Static svc:AppStrings.ScanDescription}"
                            FontSize="13" Foreground="{DynamicResource TextMuted}" Margin="0,4,0,0" TextWrapping="Wrap"/>
             </StackPanel>
 
@@ -158,8 +159,8 @@
                          TextChanged="TxtFilter_TextChanged"/>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="全选新软件" Style="{StaticResource ModernBtn}" Click="BtnSelectAll_Click" Margin="0,0,6,0"/>
-                    <Button Content="全部取消" Style="{StaticResource ModernBtn}" Click="BtnDeselectAll_Click" Margin="0,0,6,0"/>
+                    <Button Content="{x:Static svc:AppStrings.BtnSelectAllNew}" Style="{StaticResource ModernBtn}" Click="BtnSelectAll_Click" Margin="0,0,6,0"/>
+                    <Button Content="{x:Static svc:AppStrings.BtnDeselectAll}" Style="{StaticResource ModernBtn}" Click="BtnDeselectAll_Click" Margin="0,0,6,0"/>
                     <Button Content="🔄 重新扫描" Style="{StaticResource ModernBtn}" Click="BtnRescan_Click"/>
                 </StackPanel>
             </Grid>
@@ -175,7 +176,7 @@
             <Grid>
                 <!-- 正在扫描提示 -->
                 <StackPanel x:Name="PnlLoading" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed">
-                    <TextBlock Text="⏳ 正在扫描本机应用与快捷方式，请稍候..." FontSize="16" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{x:Static svc:AppStrings.ScanScanning}" FontSize="16" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
                 </StackPanel>
 
                 <!-- 结果列表 DataGrid -->
@@ -237,7 +238,7 @@
 
                     <DataGrid.Columns>
                         <!-- 勾选导入列 -->
-                        <DataGridTemplateColumn Header="导入" Width="60">
+                        <DataGridTemplateColumn Header="{x:Static svc:AppStrings.GridHeaderImport}" Width="60">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
@@ -253,7 +254,7 @@
                         </DataGridTemplateColumn>
 
                         <!-- 快捷词编辑列 -->
-                        <DataGridTemplateColumn Header="快捷词 (按键)" Width="130">
+                        <DataGridTemplateColumn Header="{x:Static svc:AppStrings.GridHeaderShortKey}" Width="130">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <TextBox Text="{Binding ShortCut, UpdateSourceTrigger=PropertyChanged}"
@@ -271,7 +272,7 @@
                         </DataGridTemplateColumn>
 
                         <!-- 软件名称列 (自适应比例宽度，支持窗口拉大与悬浮提示) -->
-                        <DataGridTextColumn Header="软件名称" Binding="{Binding Name}" Width="2*" MinWidth="180" IsReadOnly="False">
+                        <DataGridTextColumn Header="{x:Static svc:AppStrings.GridHeaderAppName}" Binding="{Binding Name}" Width="2*" MinWidth="180" IsReadOnly="False">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="FontWeight" Value="SemiBold"/>
@@ -283,7 +284,7 @@
                         </DataGridTextColumn>
 
                         <!-- 状态/来源 -->
-                        <DataGridTemplateColumn Header="状态" Width="90">
+                        <DataGridTemplateColumn Header="{x:Static svc:AppStrings.GridHeaderStatus}" Width="90">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <Border CornerRadius="4" Padding="6,2" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -317,7 +318,7 @@
                         </DataGridTemplateColumn>
 
                         <!-- 目标路径 (自适应比例宽度，支持窗口拉大与悬浮提示) -->
-                        <DataGridTextColumn Header="可执行文件路径" Binding="{Binding TargetPath}" Width="3*" MinWidth="240" IsReadOnly="True">
+                        <DataGridTextColumn Header="{x:Static svc:AppStrings.GridHeaderPath}" Binding="{Binding TargetPath}" Width="3*" MinWidth="240" IsReadOnly="True">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
@@ -343,7 +344,7 @@
             <!-- 统计信息 -->
             <TextBlock x:Name="TxtStatus"
                        Grid.Column="0"
-                       Text="共发现 0 个软件，已勾选 0 个"
+                       Text="{x:Static svc:AppStrings.ScanFooterDefault}"
                        FontSize="14"
                        Foreground="{DynamicResource TextMuted}"
                        VerticalAlignment="Center"/>
@@ -351,11 +352,11 @@
             <!-- 操作按钮 -->
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                 <Button x:Name="BtnImportSelected"
-                        Content="✓ 导入勾选软件"
+                        Content="{x:Static svc:AppStrings.BtnImportSelected}"
                         Style="{StaticResource AccentBtn}"
                         Padding="20,9"
                         Click="BtnImportSelected_Click"/>
-                <Button Content="关闭"
+                <Button Content="{x:Static svc:AppStrings.BtnClose}"
                         Style="{StaticResource ModernBtn}"
                         Padding="16,9"
                         Margin="10,0,0,0"
